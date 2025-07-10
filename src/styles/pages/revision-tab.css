@@ -1,0 +1,489 @@
+/* Revision Tab Styles */
+.revision-tab {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.revision-header {
+    background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
+    padding: 2rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.revision-header h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 1rem 0;
+}
+
+.tab-selector {
+    display: flex;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #d1d5db;
+    background: white;
+}
+
+.tab-button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: white;
+    color: #6b7280;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tab-button:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.tab-button.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+}
+
+.tab-button:not(:last-child) {
+    border-right: 1px solid #d1d5db;
+}
+
+.section-description {
+    color: #6b7280;
+    font-size: 0.95rem;
+    padding: 0 2rem 1.5rem;
+    margin-top: -1rem;
+}
+
+.revision-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 2rem;
+}
+
+.revision-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.revision-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border-color: #667eea;
+}
+
+.revision-card-header {
+    padding: 1.25rem 1.5rem;
+    background: #f8faff;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.request-meta,
+.acceptance-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.request-id,
+.question-id {
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.9rem;
+}
+
+.status-badge {
+    position: static !important;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: white;
+}
+
+.status-badge.orange {
+    background: #f59e0b;
+}
+
+.status-badge.blue {
+    background: #3b82f6;
+}
+
+.status-badge.green {
+    background: #10b981;
+}
+
+.status-badge.red {
+    background: #ef4444;
+}
+
+.status-badge.gray {
+    background: #6b7280;
+}
+
+.question-type {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: white;
+}
+
+.question-type.blue {
+    background: #3b82f6;
+}
+
+.question-type.green {
+    background: #10b981;
+}
+
+.question-type.orange {
+    background: #f59e0b;
+}
+
+.question-type.gray {
+    background: #6b7280;
+}
+
+.request-date,
+.acceptance-date {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.revision-content {
+    padding: 1.5rem;
+}
+
+.request-info,
+.tagging-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.info-item,
+.tag-item {
+    font-size: 0.9rem;
+    color: #374151;
+}
+
+.info-item strong,
+.tag-item strong {
+    color: #1f2937;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.request-description,
+.rejection-notes,
+.request-response {
+    margin-bottom: 1.5rem;
+}
+
+.request-description h4,
+.rejection-notes h4,
+.request-response h4,
+.keyword-section h4,
+.question-preview h4,
+.attachment-section h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 0.75rem 0;
+}
+
+.request-description p,
+.rejection-notes p,
+.request-response p {
+    color: #4b5563;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.request-response small {
+    display: block;
+    margin-top: 0.5rem;
+    color: #6b7280;
+    font-size: 0.8rem;
+}
+
+.keyword-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.keyword-tag {
+    background: #f3f4f6;
+    color: #374151;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.no-keywords {
+    color: #6b7280;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.question-preview p {
+    background: #f8faff;
+    padding: 1rem;
+    border-radius: 8px;
+    color: #374151;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.attachment-section {
+    margin-top: 1.5rem;
+}
+
+.revision-actions {
+    padding: 1.25rem 1.5rem;
+    background: #f8faff;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #6b7280;
+}
+
+.empty-state p {
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+/* Revision Edit Mode */
+.revision-edit {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+}
+
+.edit-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.question-info h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 0.5rem 0;
+}
+
+.revision-notes {
+    background: #fffbeb;
+    border-left: 4px solid #f59e0b;
+    padding: 1rem;
+    border-radius: 0 8px 8px 0;
+    color: #92400e;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-top: 1rem;
+}
+
+.revision-notes strong {
+    color: #92400e;
+}
+
+/* Attachment Modal */
+.attachment-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.attachment-modal-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    max-width: 800px;
+    width: 90%;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+.attachment-modal-header {
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.attachment-modal-header h3 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.attachment-viewer {
+    flex: 1;
+    padding: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+}
+
+.attachment-viewer img {
+    max-width: 100%;
+    max-height: 70vh;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.attachment-viewer iframe {
+    width: 100%;
+    height: 70vh;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.attachment-info {
+    text-align: center;
+}
+
+.attachment-info p {
+    color: #374151;
+    margin: 0 0 1rem 0;
+}
+
+.attachment-info a {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.attachment-info a:hover {
+    color: #2563eb;
+    text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .revision-header {
+        padding: 1.5rem 1rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .tab-selector {
+        width: 100%;
+    }
+
+    .tab-button {
+        flex: 1;
+        text-align: center;
+        padding: 0.75rem;
+    }
+
+    .section-description {
+        padding: 0 1rem 1rem;
+    }
+
+    .revision-list {
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .revision-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 1rem;
+    }
+
+    .request-info,
+    .tagging-info {
+        grid-template-columns: 1fr;
+    }
+
+    .revision-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .revision-edit {
+        padding: 1rem;
+    }
+
+    .edit-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .attachment-modal-content {
+        width: 95%;
+        max-height: 95vh;
+    }
+
+    .attachment-viewer {
+        padding: 1rem;
+    }
+}
