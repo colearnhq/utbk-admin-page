@@ -79,10 +79,42 @@ const RevisionTab = () => {
         setShowAttachment(attachment);
     };
 
+    const parseAttachmentUrls = (attachmentUrls) => {
+        if (!attachmentUrls) return [];
+
+        try {
+            if (Array.isArray(attachmentUrls)) {
+                return attachmentUrls;
+            }
+
+            if (typeof attachmentUrls === 'string') {
+                return JSON.parse(attachmentUrls);
+            }
+
+            return [];
+        } catch (error) {
+            console.error('Error parsing attachment URLs:', error);
+            return [];
+        }
+    };
+
+    const getFileType = (url, name) => {
+        const fileName = name || url;
+        const extension = fileName.split('.').pop().toLowerCase();
+
+        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
+            return 'image';
+        } else if (['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(extension)) {
+            return 'document';
+        } else {
+            return 'file';
+        }
+    };
+
     const getStatusColor = (status) => {
         switch (status) {
             case 'pending': return 'orange';
-            case 'in_progress': return 'blue';
+            case 'approved': return 'blue';
             case 'completed': return 'green';
             case 'rejected': return 'red';
             default: return 'gray';
@@ -184,95 +216,127 @@ const RevisionTab = () => {
                         </div>
                     ) : (
                         <div className="revision-list">
-                            {revisionRequests.map((request) => (
-                                <div key={request.id} className="revision-card request-card">
-                                    <div className="revision-card-header">
-                                        <div className="request-meta">
-                                            <span className="request-id">#{request.id}</span>
-                                            <span
-                                                className={`status-badge ${getStatusColor(request.status)}`}
-                                            >
-                                                {request.status}
-                                            </span>
-                                        </div>
-                                        <div className="request-date">
-                                            Submitted: {new Date(request.created_at).toLocaleDateString()}
-                                        </div>
-                                    </div>
+                            {revisionRequests.map((request) => {
+                                const attachments = parseAttachmentUrls(request.revision_attachment_urls);
 
-                                    <div className="revision-content">
-                                        <div className="request-info">
-                                            <div className="info-item">
-                                                <strong>Question ID:</strong> {request.question?.inhouse_id || 'N/A'}
-                                            </div>
-                                            <div className="info-item">
-                                                <strong>Subject:</strong> {request.question?.subject?.name || 'N/A'}
-                                            </div>
-                                            <div className="info-item">
-                                                <strong>Target Role:</strong> {request.target_role}
-                                            </div>
-                                            <div className="info-item">
-                                                <strong>Package:</strong> {request.package?.name || 'N/A'}
-                                            </div>
-                                        </div>
-
-                                        <div className="request-description">
-                                            <h4>Request Notes:</h4>
-                                            <p>{request.notes}</p>
-                                        </div>
-
-                                        {request.response_notes && (
-                                            <div className="request-response">
-                                                <h4>Response:</h4>
-                                                <p>{request.response_notes}</p>
-                                                <small>
-                                                    Responded by: {request.responded_by_user?.name || 'Unknown'} on {new Date(request.responded_at).toLocaleDateString()}
-                                                </small>
-                                            </div>
-                                        )}
-
-                                        {request.evidence_file_url && (
-                                            <div className="attachment-section">
-                                                <h4>Evidence:</h4>
-                                                <button
-                                                    className="btn btn-outline btn-sm"
-                                                    onClick={() => handleViewAttachment({
-                                                        url: request.evidence_file_url,
-                                                        type: request.attachment_type,
-                                                        name: request.attachment_name
-                                                    })}
+                                return (
+                                    <div key={request.id} className="revision-card request-card">
+                                        <div className="revision-card-header">
+                                            <div className="request-meta">
+                                                <span className="request-id">#{request.id}</span>
+                                                <span
+                                                    className={`status-badge ${getStatusColor(request.status)}`}
                                                 >
-                                                    View Evidence
-                                                </button>
+                                                    {request.status}
+                                                </span>
                                             </div>
-                                        )}
-                                    </div>
+                                            <div className="request-date">
+                                                Submitted: {new Date(request.created_at).toLocaleDateString()}
+                                            </div>
+                                        </div>
 
-                                    <div className="revision-actions">
-                                        <button
-                                            className="btn btn-outline"
-                                            onClick={() => handlePreview({
-                                                ...request.question,
-                                                subject_id: request.question?.subject?.id,
-                                                chapter_id: request.question?.chapter?.id,
-                                                topic_id: request.question?.topic?.id,
-                                                concept_title_id: request.question?.concept_title?.id
-                                            })}
-                                            disabled={!request.question}
-                                        >
-                                            Preview Question
-                                        </button>
-                                        {request.status === 'pending' && (
+                                        <div className="revision-content">
+                                            <div className="request-info">
+                                                <div className="info-item">
+                                                    <strong>Question ID:</strong> {request.question?.inhouse_id || 'N/A'}
+                                                </div>
+                                                <div className="info-item">
+                                                    <strong>Subject:</strong> {request.question?.subject?.name || request.package?.subject || 'N/A'}
+                                                </div>
+                                                <div className="info-item">
+                                                    <strong>Target Role:</strong> {request.target_role}
+                                                </div>
+                                                <div className="info-item">
+                                                    <strong>Package:</strong> {request.package?.title || 'N/A'}
+                                                </div>
+                                            </div>
+
+                                            <div className="request-description">
+                                                <h4>Request Notes:</h4>
+                                                <p>{request.notes}</p>
+                                            </div>
+
+                                            {request.response_notes && (
+                                                <div className="request-response">
+                                                    <h4>Response:</h4>
+                                                    <p>{request.response_notes}</p>
+                                                    <small>
+                                                        Responded by: {request.responded_by_user?.name || 'Unknown'} on {new Date(request.responded_at).toLocaleDateString()}
+                                                    </small>
+                                                </div>
+                                            )}
+
+                                            {request.remarks && (
+                                                <div className="request-remarks">
+                                                    <h4>Remarks:</h4>
+                                                    <p>{request.remarks}</p>
+                                                </div>
+                                            )}
+
+                                            {/* Updated attachment handling */}
+                                            {(request.evidence_file_url || attachments.length > 0) && (
+                                                <div className="attachment-section">
+                                                    <h4>Evidence:</h4>
+                                                    <div className="attachment-list">
+                                                        {/* Legacy single attachment */}
+                                                        {request.evidence_file_url && !attachments.length && (
+                                                            <button
+                                                                className="btn btn-outline btn-sm"
+                                                                onClick={() => handleViewAttachment({
+                                                                    url: request.evidence_file_url,
+                                                                    type: getFileType(request.evidence_file_url),
+                                                                    name: 'Evidence File'
+                                                                })}
+                                                            >
+                                                                View Evidence
+                                                            </button>
+                                                        )}
+
+                                                        {/* New multiple attachments */}
+                                                        {attachments.map((attachment, index) => (
+                                                            <button
+                                                                key={index}
+                                                                className="btn btn-outline btn-sm"
+                                                                onClick={() => handleViewAttachment({
+                                                                    url: attachment.url,
+                                                                    type: getFileType(attachment.url, attachment.name),
+                                                                    name: attachment.name
+                                                                })}
+                                                            >
+                                                                {attachment.name}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="revision-actions">
                                             <button
-                                                className="btn btn-secondary"
-                                                onClick={() => handleEditItem(request)}
+                                                className="btn btn-outline"
+                                                onClick={() => handlePreview({
+                                                    ...request.question,
+                                                    subject_id: request.question?.subject?.id,
+                                                    chapter_id: request.question?.chapter?.id,
+                                                    topic_id: request.question?.topic?.id,
+                                                    concept_title_id: request.question?.concept_title?.id
+                                                })}
+                                                disabled={!request.question}
                                             >
-                                                Edit Request
+                                                Preview Question
                                             </button>
-                                        )}
+                                            {request.status === 'pending' && (
+                                                <button
+                                                    className="btn btn-secondary"
+                                                    onClick={() => handleEditItem(request)}
+                                                >
+                                                    Edit Request
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -288,99 +352,131 @@ const RevisionTab = () => {
                         </div>
                     ) : (
                         <div className="revision-list">
-                            {revisionAcceptances.map((acceptance) => (
-                                <div key={acceptance.id} className="revision-card acceptance-card">
-                                    <div className="revision-card-header">
-                                        <div className="acceptance-meta">
-                                            <span className="question-id">{acceptance.question.inhouse_id}</span>
-                                            <span
-                                                className={`question-type ${getQuestionTypeColor(acceptance.question.question_type)}`}
-                                            >
-                                                {acceptance.question.question_type}
-                                            </span>
-                                        </div>
-                                        <div className="acceptance-date">
-                                            Received: {new Date(acceptance.created_at).toLocaleDateString()}
-                                        </div>
-                                    </div>
+                            {revisionAcceptances.map((acceptance) => {
+                                const attachments = parseAttachmentUrls(acceptance.revision_attachment_urls);
 
-                                    <div className="revision-content">
-                                        <div className="tagging-info">
-                                            <div className="tag-item">
-                                                <strong>Subject:</strong> {acceptance.question.subject.name}
-                                            </div>
-                                            <div className="tag-item">
-                                                <strong>Chapter:</strong> {acceptance.question.chapter.name}
-                                            </div>
-                                            <div className="tag-item">
-                                                <strong>Topic:</strong> {acceptance.question.topic.name}
-                                            </div>
-                                            <div className="tag-item">
-                                                <strong>Concept:</strong> {acceptance.question.concept_title.name}
-                                            </div>
-                                        </div>
-
-                                        <div className="keyword-section">
-                                            <h4>Keywords:</h4>
-                                            <div className="keyword-tags">
-                                                {acceptance.keywords?.map((keyword, index) => (
-                                                    <span key={index} className="keyword-tag">
-                                                        {keyword}
-                                                    </span>
-                                                )) || <span className="no-keywords">No keywords</span>}
-                                            </div>
-                                        </div>
-
-                                        <div className="question-preview">
-                                            <h4>Question:</h4>
-                                            <p>{acceptance.question.question}</p>
-                                        </div>
-
-                                        <div className="rejection-notes">
-                                            <h4>Issue Notes:</h4>
-                                            <p>{acceptance.notes}</p>
-                                            <small>Reported by: {acceptance.requested_by_user?.name || 'Unknown'}</small>
-                                        </div>
-
-                                        {acceptance.evidence_file_url && (
-                                            <div className="attachment-section">
-                                                <h4>Evidence:</h4>
-                                                <button
-                                                    className="btn btn-outline btn-sm"
-                                                    onClick={() => handleViewAttachment({
-                                                        url: acceptance.evidence_file_url,
-                                                        type: acceptance.attachment_type,
-                                                        name: acceptance.attachment_name
-                                                    })}
+                                return (
+                                    <div key={acceptance.id} className="revision-card acceptance-card">
+                                        <div className="revision-card-header">
+                                            <div className="acceptance-meta">
+                                                <span className="question-id">{acceptance.question.inhouse_id}</span>
+                                                <span
+                                                    className={`question-type ${getQuestionTypeColor(acceptance.question.question_type)}`}
                                                 >
-                                                    View Evidence
-                                                </button>
+                                                    {acceptance.question.question_type}
+                                                </span>
                                             </div>
-                                        )}
-                                    </div>
+                                            <div className="acceptance-date">
+                                                Received: {new Date(acceptance.created_at).toLocaleDateString()}
+                                            </div>
+                                        </div>
 
-                                    <div className="revision-actions">
-                                        <button
-                                            className="btn btn-outline"
-                                            onClick={() => handlePreview({
-                                                ...acceptance.question,
-                                                subject_id: acceptance.question.subject.id,
-                                                chapter_id: acceptance.question.chapter.id,
-                                                topic_id: acceptance.question.topic.id,
-                                                concept_title_id: acceptance.question.concept_title.id
-                                            })}
-                                        >
-                                            Preview
-                                        </button>
-                                        <button
-                                            className="btn btn-primary"
-                                            onClick={() => handleEditItem(acceptance)}
-                                        >
-                                            Edit Question
-                                        </button>
+                                        <div className="revision-content">
+                                            <div className="tagging-info">
+                                                <div className="tag-item">
+                                                    <strong>Subject:</strong> {acceptance.question.subject.name}
+                                                </div>
+                                                <div className="tag-item">
+                                                    <strong>Chapter:</strong> {acceptance.question.chapter.name}
+                                                </div>
+                                                <div className="tag-item">
+                                                    <strong>Topic:</strong> {acceptance.question.topic.name}
+                                                </div>
+                                                <div className="tag-item">
+                                                    <strong>Concept:</strong> {acceptance.question.concept_title.name}
+                                                </div>
+                                            </div>
+
+                                            <div className="keyword-section">
+                                                <h4>Keywords:</h4>
+                                                <div className="keyword-tags">
+                                                    {acceptance.keywords?.map((keyword, index) => (
+                                                        <span key={index} className="keyword-tag">
+                                                            {keyword}
+                                                        </span>
+                                                    )) || <span className="no-keywords">No keywords</span>}
+                                                </div>
+                                            </div>
+
+                                            <div className="question-preview">
+                                                <h4>Question:</h4>
+                                                <p>{acceptance.question.question}</p>
+                                            </div>
+
+                                            <div className="rejection-notes">
+                                                <h4>Issue Notes:</h4>
+                                                <p>{acceptance.notes}</p>
+                                                <small>Reported by: {acceptance.requested_by_user?.name || 'Unknown'}</small>
+                                            </div>
+
+                                            {acceptance.remarks && (
+                                                <div className="acceptance-remarks">
+                                                    <h4>Remarks:</h4>
+                                                    <p>{acceptance.remarks}</p>
+                                                </div>
+                                            )}
+
+                                            {/* Updated attachment handling */}
+                                            {(acceptance.evidence_file_url || attachments.length > 0) && (
+                                                <div className="attachment-section">
+                                                    <h4>Evidence:</h4>
+                                                    <div className="attachment-list">
+                                                        {/* Legacy single attachment */}
+                                                        {acceptance.evidence_file_url && !attachments.length && (
+                                                            <button
+                                                                className="btn btn-outline btn-sm"
+                                                                onClick={() => handleViewAttachment({
+                                                                    url: acceptance.evidence_file_url,
+                                                                    type: getFileType(acceptance.evidence_file_url),
+                                                                    name: 'Evidence File'
+                                                                })}
+                                                            >
+                                                                View Evidence
+                                                            </button>
+                                                        )}
+
+                                                        {/* New multiple attachments */}
+                                                        {attachments.map((attachment, index) => (
+                                                            <button
+                                                                key={index}
+                                                                className="btn btn-outline btn-sm"
+                                                                onClick={() => handleViewAttachment({
+                                                                    url: attachment.url,
+                                                                    type: getFileType(attachment.url, attachment.name),
+                                                                    name: attachment.name
+                                                                })}
+                                                            >
+                                                                {attachment.name}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="revision-actions">
+                                            <button
+                                                className="btn btn-outline"
+                                                onClick={() => handlePreview({
+                                                    ...acceptance.question,
+                                                    subject_id: acceptance.question.subject.id,
+                                                    chapter_id: acceptance.question.chapter.id,
+                                                    topic_id: acceptance.question.topic.id,
+                                                    concept_title_id: acceptance.question.concept_title.id
+                                                })}
+                                            >
+                                                Preview
+                                            </button>
+                                            <button
+                                                className="btn btn-primary"
+                                                onClick={() => handleEditItem(acceptance)}
+                                            >
+                                                Edit Question
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -391,7 +487,7 @@ const RevisionTab = () => {
                 <div className="attachment-modal">
                     <div className="attachment-modal-content">
                         <div className="attachment-modal-header">
-                            <h3>Attachment</h3>
+                            <h3>Attachment: {showAttachment.name}</h3>
                             <button
                                 className="btn btn-close"
                                 onClick={() => setShowAttachment(null)}
@@ -401,9 +497,17 @@ const RevisionTab = () => {
                         </div>
                         <div className="attachment-viewer">
                             {showAttachment.type === 'image' ? (
-                                <img src={showAttachment.url} alt="Attachment" />
+                                <img
+                                    src={showAttachment.url}
+                                    alt={showAttachment.name}
+                                    style={{ maxWidth: '100%', maxHeight: '80vh' }}
+                                />
                             ) : showAttachment.type === 'document' ? (
-                                <iframe src={showAttachment.url} title="Document" />
+                                <iframe
+                                    src={showAttachment.url}
+                                    title={showAttachment.name}
+                                    style={{ width: '100%', height: '80vh' }}
+                                />
                             ) : (
                                 <div className="attachment-info">
                                     <p>File: {showAttachment.name}</p>

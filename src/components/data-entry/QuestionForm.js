@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getSubjects, getChapters, getTopics, getConceptTitles, uploadFileToGoogleDrive, generateUniqueFileName } from '../../services/supabase';
 import { uploadFileToSupabase, checkBucketExists, createBucket } from '../../services/supabase-storage';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -12,7 +12,7 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
         concept_title_id: '',
         question_type: 'MCQ',
         question: '',
-        question_attachment: null,
+        question_attachments: [],
         option_a: '',
         option_b: '',
         option_c: '',
@@ -21,7 +21,7 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
         correct_option: 'A',
         correct_answer: '',
         solution: '',
-        solution_attachment: null
+        solution_attachments: []
     });
 
     const [dropdownData, setDropdownData] = useState({
@@ -33,6 +33,9 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    
+    const questionTextareaRef = useRef(null);
+    const solutionTextareaRef = useRef(null);
 
     useEffect(() => {
         loadSubjects();
@@ -147,8 +150,37 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
         const { name, files } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: files[0] || null
+            [name]: [...(prev[name] || []), ...Array.from(files)]
         }));
+    };
+
+    const handleRemoveAttachment = (fieldName, indexToRemove) => {
+        setFormData(prev => ({
+            ...prev,
+            [fieldName]: prev[fieldName].filter((_, index) => index !== indexToRemove)
+        }));
+    };
+
+    const handleInsertPlaceholder = (textareaRef, fileName) => {
+        if (textareaRef.current) {
+            const textarea = textareaRef.current;
+            const placeholder = `[attachment:${fileName}]`;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const newText = text.substring(0, start) + placeholder + text.substring(end);
+            
+            setFormData(prev => ({
+                ...prev,
+                [textarea.name]: newText
+            }));
+
+            // Move cursor to after the inserted placeholder
+            setTimeout(() => {
+                textarea.selectionStart = textarea.selectionEnd = start + placeholder.length;
+                textarea.focus();
+            }, 0);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -158,65 +190,31 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
         try {
             let processedFormData = { ...formData };
 
-            // Process question attachment
-            if (formData.question_attachment) {
-                const questionFileName = generateUniqueFileName(
-                    formData.question_attachment.name,
-                    'question_'
-                );
+            const uploadAttachments = async (attachments, type) => {
+                const uploadedAttachments = [];
+                for (const file of attachments) {
+                    if (file.publicUrl) { // Already uploaded
+                        uploadedAttachments.push(file);
+                        continue;
+                    }
+                    const fileName = generateUniqueFileName(file.name, `${type}_`);
+                    
+                    const supabaseUpload = await uploadFileToSupabase(file, `${type}-attachments`, fileName, null);
+                    const googleDriveResult = await uploadFileToGoogleDrive(file, fileName);
 
-                // Upload to Supabase
-                const questionSupabaseUpload = await uploadFileToSupabase(
-                    formData.question_attachment,
-                    'question-attachments',
-                    questionFileName,
-                    null
-                );
+                    uploadedAttachments.push({
+                        fileName: fileName,
+                        publicUrl: supabaseUpload.publicUrl,
+                        googleDriveId: googleDriveResult.fileId,
+                        googleDriveUrl: googleDriveResult.fileUrl,
+                        originalName: file.name
+                    });
+                }
+                return uploadedAttachments;
+            };
 
-                // Upload to Google Drive
-                const questionGoogleDriveResult = await uploadFileToGoogleDrive(
-                    formData.question_attachment,
-                    questionFileName
-                );
-
-                processedFormData.question_attachment = {
-                    fileName: questionFileName,
-                    publicUrl: questionSupabaseUpload.publicUrl,
-                    googleDriveId: questionGoogleDriveResult.fileId,
-                    googleDriveUrl: questionGoogleDriveResult.fileUrl,
-                    originalName: formData.question_attachment.name
-                };
-            }
-
-            // Process solution attachment
-            if (formData.solution_attachment) {
-                const solutionFileName = generateUniqueFileName(
-                    formData.solution_attachment.name,
-                    'solution_'
-                );
-
-                // Upload to Supabase
-                const solutionSupabaseUpload = await uploadFileToSupabase(
-                    formData.solution_attachment,
-                    'solution-attachments',
-                    solutionFileName,
-                    null
-                );
-
-                // Upload to Google Drive
-                const solutionGoogleDriveResult = await uploadFileToGoogleDrive(
-                    formData.solution_attachment,
-                    solutionFileName
-                );
-
-                processedFormData.solution_attachment = {
-                    fileName: solutionFileName,
-                    publicUrl: solutionSupabaseUpload.publicUrl,
-                    googleDriveId: solutionGoogleDriveResult.fileId,
-                    googleDriveUrl: solutionGoogleDriveResult.fileUrl,
-                    originalName: formData.solution_attachment.name
-                };
-            }
+            processedFormData.question_attachments = await uploadAttachments(formData.question_attachments, 'question');
+            processedFormData.solution_attachments = await uploadAttachments(formData.solution_attachments, 'solution');
 
             await onSubmit(processedFormData);
 
@@ -229,7 +227,7 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                 concept_title_id: '',
                 question_type: 'MCQ',
                 question: '',
-                question_attachment: null,
+                question_attachments: [],
                 option_a: '',
                 option_b: '',
                 option_c: '',
@@ -238,7 +236,7 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                 correct_option: 'A',
                 correct_answer: '',
                 solution: '',
-                solution_attachment: null
+                solution_attachments: []
             });
         } catch (error) {
             console.error('Error submitting form:', error);
@@ -249,7 +247,11 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
     };
 
     const handlePreview = () => {
-        onPreview(formData);
+        const subject = dropdownData.subjects.find(s => s.id === formData.subject_id);
+        onPreview({
+            ...formData,
+            subject_name: subject ? subject.name : ''
+        });
     };
 
     if (loading) return <LoadingSpinner message="Loading form data..." />;
@@ -365,25 +367,36 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                 <div className="form-group">
                     <label htmlFor="question">Question</label>
                     <textarea
+                        ref={questionTextareaRef}
                         id="question"
                         name="question"
                         value={formData.question}
                         onChange={handleInputChange}
                         required
-                        rows={4}
-                        placeholder="Enter the question text (supports LaTeX)"
+                        rows={6}
+                        placeholder="Enter the question text (supports LaTeX). Use the 'Insert' button to place attachments."
                     />
                 </div>
 
                 <div className="form-group">
-                    <label htmlFor="question_attachment">Question Attachment</label>
+                    <label htmlFor="question_attachments">Question Attachments</label>
                     <input
                         type="file"
-                        id="question_attachment"
-                        name="question_attachment"
+                        id="question_attachments"
+                        name="question_attachments"
                         onChange={handleFileChange}
                         accept="image/*,.pdf"
+                        multiple
                     />
+                    <div className="attachments-list">
+                        {formData.question_attachments.map((file, index) => (
+                            <div key={index} className="attachment-item">
+                                <span>{file.name}</span>
+                                <button type="button" className="btn-insert" onClick={() => handleInsertPlaceholder(questionTextareaRef, file.name)}>Insert</button>
+                                <button type="button" className="btn-remove" onClick={() => handleRemoveAttachment('question_attachments', index)}>Remove</button>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 {formData.question_type === 'MCQ' && (
@@ -447,25 +460,36 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                 <div className="form-group">
                     <label htmlFor="solution">Solution including Concepts</label>
                     <textarea
+                        ref={solutionTextareaRef}
                         id="solution"
                         name="solution"
                         value={formData.solution}
                         onChange={handleInputChange}
                         required
-                        rows={6}
-                        placeholder="Enter the solution with detailed explanation"
+                        rows={8}
+                        placeholder="Enter the solution with detailed explanation. Use the 'Insert' button to place attachments."
                     />
                 </div>
 
                 <div className="form-group">
-                    <label htmlFor="solution_attachment">Solution Attachment</label>
+                    <label htmlFor="solution_attachments">Solution Attachments</label>
                     <input
                         type="file"
-                        id="solution_attachment"
-                        name="solution_attachment"
+                        id="solution_attachments"
+                        name="solution_attachments"
                         onChange={handleFileChange}
                         accept="image/*,.pdf"
+                        multiple
                     />
+                    <div className="attachments-list">
+                        {formData.solution_attachments.map((file, index) => (
+                            <div key={index} className="attachment-item">
+                                <span>{file.name}</span>
+                                <button type="button" className="btn-insert" onClick={() => handleInsertPlaceholder(solutionTextareaRef, file.name)}>Insert</button>
+                                <button type="button" className="btn-remove" onClick={() => handleRemoveAttachment('solution_attachments', index)}>Remove</button>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="form-actions">

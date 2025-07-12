@@ -240,7 +240,6 @@ const MetadataManagement = () => {
   const handleEdit = (item) => {
     setEditingItem(item);
 
-    // Hanya mengisi field yang diperlukan berdasarkan activeTab
     switch (activeTab) {
       case 'subjects':
         setFormData({
@@ -340,7 +339,7 @@ const MetadataManagement = () => {
     <div className="metadata-container">
       <div className="metadata-header">
         <h2>Manajemen Metadata</h2>
-        <p>Kelola hierarki mata pelajaran, bab, topik, dan konsep</p>
+        <p>Kelola hierarki subject, chapter, topic, dan concept title</p>
       </div>
 
       {error && (
@@ -362,35 +361,35 @@ const MetadataManagement = () => {
           className={`tab-btn ${activeTab === 'subjects' ? 'active' : ''}`}
           onClick={() => setActiveTab('subjects')}
         >
-          Mata Pelajaran
+          Subject
         </button>
         <button
           className={`tab-btn ${activeTab === 'chapters' ? 'active' : ''}`}
           onClick={() => setActiveTab('chapters')}
           disabled={!selectedSubject}
         >
-          Bab
+          Chapter
         </button>
         <button
           className={`tab-btn ${activeTab === 'topics' ? 'active' : ''}`}
           onClick={() => setActiveTab('topics')}
           disabled={!selectedChapter}
         >
-          Topik
+          Topic
         </button>
         <button
           className={`tab-btn ${activeTab === 'concepts' ? 'active' : ''}`}
           onClick={() => setActiveTab('concepts')}
           disabled={!selectedTopic}
         >
-          Konsep
+          Concept Title
         </button>
       </div>
 
       <div className="metadata-content">
         <div className="hierarchy-nav">
           <div className="nav-item">
-            <label>Mata Pelajaran:</label>
+            <label>Subject:</label>
             <select
               value={selectedSubject}
               onChange={(e) => {
@@ -399,7 +398,7 @@ const MetadataManagement = () => {
                 setSelectedTopic('');
               }}
             >
-              <option value="">Pilih Mata Pelajaran</option>
+              <option value="">Pilih Subject</option>
               {subjects.map(subject => (
                 <option key={subject.id} value={subject.id}>
                   {subject.name}
@@ -410,7 +409,7 @@ const MetadataManagement = () => {
 
           {selectedSubject && (
             <div className="nav-item">
-              <label>Bab:</label>
+              <label>Chapter:</label>
               <select
                 value={selectedChapter}
                 onChange={(e) => {
@@ -418,7 +417,7 @@ const MetadataManagement = () => {
                   setSelectedTopic('');
                 }}
               >
-                <option value="">Pilih Bab</option>
+                <option value="">Pilih Chapter</option>
                 {chapters.map(chapter => (
                   <option key={chapter.id} value={chapter.id}>
                     {chapter.name}
@@ -430,12 +429,12 @@ const MetadataManagement = () => {
 
           {selectedChapter && (
             <div className="nav-item">
-              <label>Topik:</label>
+              <label>Topic:</label>
               <select
                 value={selectedTopic}
                 onChange={(e) => setSelectedTopic(e.target.value)}
               >
-                <option value="">Pilih Topik</option>
+                <option value="">Pilih Topic</option>
                 {topics.map(topic => (
                   <option key={topic.id} value={topic.id}>
                     {topic.name}

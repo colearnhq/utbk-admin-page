@@ -30,45 +30,78 @@ const QuestionPreview = ({ data, onClose }) => {
         });
     };
 
-    const getSubjectName = (subjectId) => {
-        // TODO: Get actual subject name from context or props
-        return 'Subject Name';
+    const renderContentWithAttachments = (text, attachments) => {
+        if (!text) return '';
+        if (!attachments || attachments.length === 0) return renderMathContent(text);
+
+        let processedText = text;
+        const attachmentElements = [];
+
+        JSON.parse(attachments).forEach((attachment, index) => {
+            const fileName = attachment.originalName || attachment.name || attachment.fileName;
+            const placeholder = `[attachment:${fileName}]`;
+
+            if (processedText.includes(placeholder)) {
+                const attachmentElement = (
+                    <div key={`attachment-${index}`} className="inline-attachment">
+                        <img
+                            src={attachment.publicUrl || (attachment instanceof File ? URL.createObjectURL(attachment) : '')}
+                            alt={`Attachment ${fileName}`}
+                            style={{ maxWidth: '100%', height: 'auto', margin: '10px 0' }}
+                        />
+                    </div>
+                );
+                processedText = processedText.replace(placeholder, `__ATTACHMENT_${index}__`);
+                attachmentElements[index] = attachmentElement;
+            }
+        });
+
+        const parts = processedText.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$|__ATTACHMENT_\d+__)/);
+
+        return parts.map((part, index) => {
+            if (part.startsWith('$$') && part.endsWith('$$')) {
+                const mathContent = part.slice(2, -2);
+                return <BlockMath key={index} math={mathContent} />;
+            } else if (part.startsWith('$') && part.endsWith('$')) {
+                const mathContent = part.slice(1, -1);
+                return <InlineMath key={index} math={mathContent} />;
+            } else if (part.startsWith('__ATTACHMENT_') && part.endsWith('__')) {
+                const attachmentIndex = parseInt(part.match(/\d+/)[0]);
+                return attachmentElements[attachmentIndex] || null;
+            } else {
+                return part;
+            }
+        });
     };
 
-    const renderQuestion = () => {
-        let attachmentUrl = '';
-        if (data.question_attachment) {
-            let attachmentData = data.question_attachment;
-            if (typeof attachmentData === 'string') {
-                try {
-                    attachmentData = JSON.parse(attachmentData);
-                } catch (e) {
-                    console.error("Failed to parse question attachment JSON:", e);
-                    attachmentData = null;
-                }
-            }
 
-            if (attachmentData instanceof File) {
-                attachmentUrl = URL.createObjectURL(attachmentData);
-            } else if (typeof attachmentData === 'object' && attachmentData && attachmentData.publicUrl) {
-                attachmentUrl = attachmentData.publicUrl;
-            }
-        }
+
+    const renderQuestion = () => {
+        const attachments = data.question_attachments || [];
+        const unusedAttachments = JSON.parse(attachments).filter(attachment => {
+            const fileName = attachment.originalName || attachment.name || attachment.fileName;
+            return !data.question.includes(`[attachment:${fileName}]`);
+        });
 
         return (
             <div className="question-content">
                 <h3>Question</h3>
                 <div className="question-text">
-                    {renderMathContent(data.question)}
+                    {renderContentWithAttachments(data.question, attachments)}
                 </div>
 
-                {attachmentUrl && (
-                    <div className="question-attachment">
-                        <img
-                            src={attachmentUrl}
-                            alt="Question attachment"
-                            style={{ maxWidth: '100%', height: 'auto' }}
-                        />
+                {unusedAttachments.length > 0 && (
+                    <div className="question-attachments">
+                        <h5>Additional Attachments:</h5>
+                        {unusedAttachments.map((attachment, index) => (
+                            <div key={index} className="attachment-item">
+                                <img
+                                    src={attachment.publicUrl || (attachment instanceof File ? URL.createObjectURL(attachment) : '')}
+                                    alt={`Question attachment ${index + 1}`}
+                                    style={{ maxWidth: '100%', height: 'auto', margin: '5px 0' }}
+                                />
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
@@ -122,39 +155,31 @@ const QuestionPreview = ({ data, onClose }) => {
     const renderSolution = () => {
         if (!showSolution) return null;
 
-        let attachmentUrl = '';
-        if (data.solution_attachment) {
-            let attachmentData = data.solution_attachment;
-            if (typeof attachmentData === 'string') {
-                try {
-                    attachmentData = JSON.parse(attachmentData);
-                } catch (e) {
-                    console.error("Failed to parse solution attachment JSON:", e);
-                    attachmentData = null;
-                }
-            }
-
-            if (attachmentData instanceof File) {
-                attachmentUrl = URL.createObjectURL(attachmentData);
-            } else if (typeof attachmentData === 'object' && attachmentData && attachmentData.publicUrl) {
-                attachmentUrl = attachmentData.publicUrl;
-            }
-        }
+        const attachments = data.solution_attachments || [];
+        const unusedAttachments = JSON.parse(attachments).filter(attachment => {
+            const fileName = attachment.originalName || attachment.name || attachment.fileName;
+            return !data.solution.includes(`[attachment:${fileName}]`);
+        });
 
         return (
             <div className="solution-content">
                 <h4>Solution</h4>
                 <div className="solution-text">
-                    {renderMathContent(data.solution)}
+                    {renderContentWithAttachments(data.solution, attachments)}
                 </div>
 
-                {attachmentUrl && (
-                    <div className="solution-attachment">
-                        <img
-                            src={attachmentUrl}
-                            alt="Solution attachment"
-                            style={{ maxWidth: '100%', height: 'auto' }}
-                        />
+                {unusedAttachments.length > 0 && (
+                    <div className="solution-attachments">
+                        <h5>Additional Attachments:</h5>
+                        {unusedAttachments.map((attachment, index) => (
+                            <div key={index} className="attachment-item">
+                                <img
+                                    src={attachment.publicUrl || (attachment instanceof File ? URL.createObjectURL(attachment) : '')}
+                                    alt={`Solution attachment ${index + 1}`}
+                                    style={{ maxWidth: '100%', height: 'auto', margin: '5px 0' }}
+                                />
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
@@ -180,7 +205,7 @@ const QuestionPreview = ({ data, onClose }) => {
                             <strong>Exam:</strong> {data.exam}
                         </div>
                         <div className="meta-item">
-                            <strong>Subject:</strong> {data.subject ? data.subject.name : 'Loading...'}
+                            <strong>Subject:</strong> {data.subject_name || 'Loading...'}
                         </div>
                         <div className="meta-item">
                             <strong>Type:</strong> {data.question_type}

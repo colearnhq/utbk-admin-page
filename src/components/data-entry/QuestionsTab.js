@@ -109,7 +109,7 @@ const QuestionsTab = () => {
         }
     };
 
-    const filteredQuestions = questions; // Filtering is already done in the API call
+    const filteredQuestions = questions;
 
     if (loading) return <LoadingSpinner message="Loading questions..." />;
     if (error) return <div className="error-message">{error}</div>;
@@ -121,7 +121,7 @@ const QuestionsTab = () => {
                 <p>View and manage all created questions</p>
             </div>
 
-            <div className="questions-stats">
+            <div className="questions-stats-data-entry">
                 <div className="stat-card">
                     <div className="stat-number">{stats.total}</div>
                     <div className="stat-label">Total Questions</div>
@@ -190,7 +190,7 @@ const QuestionsTab = () => {
                                 <div className="question-meta">
                                     <span className="question-id">{question.inhouse_id}</span>
                                     <span
-                                        className={`question-type ${getQuestionTypeColor(question.question_type)}`}
+                                        className={`question-type-on-data-entry ${getQuestionTypeColor(question.question_type)}`}
                                     >
                                         {question.question_type}
                                     </span>

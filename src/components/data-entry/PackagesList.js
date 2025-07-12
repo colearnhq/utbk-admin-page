@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
-import { getQuestionPackages, getQuestionsByPackage } from '../../services/supabase';
+import { getPackagesWithProgress } from '../../services/supabase';
 import LoadingSpinner from '../common/LoadingSpinner';
 import QuestionCreator from './QuestionCreator';
 import RevisionRequestModal from './RevisionRequestModal';
 
 const PackagesList = () => {
     const [packages, setPackages] = useState([]);
+    const [filteredPackages, setFilteredPackages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedPackage, setSelectedPackage] = useState(null);
     const [showRevisionModal, setShowRevisionModal] = useState(false);
     const [revisionPackage, setRevisionPackage] = useState(null);
-    const [packageProgress, setPackageProgress] = useState({});
+    const [subjectFilter, setSubjectFilter] = useState('');
+    const [progressFilter, setProgressFilter] = useState('');
+    const [sortDirection, setSortDirection] = useState('asc');
 
     useEffect(() => {
         fetchPackages();
@@ -20,41 +23,14 @@ const PackagesList = () => {
     const fetchPackages = async () => {
         try {
             setLoading(true);
-            const data = await getQuestionPackages();
-            const approvedPackages = data.filter(pkg => pkg.status === 'pending');
-            setPackages(approvedPackages);
-
-            // Fetch progress for each package
-            await fetchPackageProgress(approvedPackages);
+            const data = await getPackagesWithProgress();
+            setPackages(data);
+            setFilteredPackages(data);
         } catch (err) {
             setError('Failed to fetch packages');
             console.error('Error fetching packages:', err);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchPackageProgress = async (packages) => {
-        try {
-            const progressData = {};
-
-            for (const pkg of packages) {
-                const questions = await getQuestionsByPackage(pkg.id);
-                const totalQuestions = pkg.amount_of_questions;
-                const createdQuestions = questions.length;
-                const revisedQuestions = questions.filter(q => q.status === 'revised').length;
-
-                progressData[pkg.id] = {
-                    created: createdQuestions,
-                    total: totalQuestions,
-                    revised: revisedQuestions,
-                    percentage: totalQuestions > 0 ? (createdQuestions / totalQuestions) * 100 : 0
-                };
-            }
-
-            setPackageProgress(progressData);
-        } catch (error) {
-            console.error('Error fetching package progress:', error);
         }
     };
 
@@ -67,13 +43,54 @@ const PackagesList = () => {
         setShowRevisionModal(true);
     };
 
-    const getProgressInfo = (pkg) => {
-        return packageProgress[pkg.id] || {
-            created: 0,
-            total: pkg.amount_of_questions,
-            revised: 0,
-            percentage: 0
-        };
+    const getProgressStatus = (percentage) => {
+        if (percentage === 0) return 'not-started';
+        if (percentage > 0 && percentage < 100) return 'on-progress';
+        if (percentage === 100) return 'completed';
+        return 'not-started';
+    };
+
+    const getUniqueSubjects = () => {
+        return [...new Set(packages.map(pkg => pkg.subject))];
+    };
+
+    const applyFiltersAndSort = () => {
+        let filtered = [...packages];
+
+        if (subjectFilter) {
+            filtered = filtered.filter(pkg => pkg.subject === subjectFilter);
+        }
+
+        if (progressFilter) {
+            filtered = filtered.filter(pkg => {
+                const status = getProgressStatus(pkg.progress.percentage);
+                return status === progressFilter;
+            });
+        }
+
+        filtered.sort((a, b) => {
+            const aProgress = a.progress.percentage;
+            const bProgress = b.progress.percentage;
+            return sortDirection === 'asc' ? aProgress - bProgress : bProgress - aProgress;
+        });
+
+        setFilteredPackages(filtered);
+    };
+
+    useEffect(() => {
+        applyFiltersAndSort();
+    }, [packages, subjectFilter, progressFilter, sortDirection]);
+
+    const handleSubjectFilterChange = (e) => {
+        setSubjectFilter(e.target.value);
+    };
+
+    const handleProgressFilterChange = (e) => {
+        setProgressFilter(e.target.value);
+    };
+
+    const handleSortToggle = () => {
+        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
     };
 
     const getSubjectAbbreviation = (subject) => {
@@ -109,14 +126,59 @@ const PackagesList = () => {
                 <p>Convert approved packages into individual questions</p>
             </div>
 
+            <div className="filters-section">
+                <div className="filter-group">
+                    <label htmlFor="subject-filter">Subject:</label>
+                    <select 
+                        id="subject-filter"
+                        value={subjectFilter} 
+                        onChange={handleSubjectFilterChange}
+                        className="filter-select"
+                    >
+                        <option value="">All Subjects</option>
+                        {getUniqueSubjects().map(subject => (
+                            <option key={subject} value={subject}>{subject}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="filter-group">
+                    <label htmlFor="progress-filter">Progress:</label>
+                    <select 
+                        id="progress-filter"
+                        value={progressFilter} 
+                        onChange={handleProgressFilterChange}
+                        className="filter-select"
+                    >
+                        <option value="">All Progress</option>
+                        <option value="not-started">Not Started Yet</option>
+                        <option value="on-progress">On Progress</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+
+                <div className="sort-group">
+                    <button 
+                        onClick={handleSortToggle}
+                        className="sort-btn"
+                    >
+                        Sort by Progress {sortDirection === 'asc' ? '↑' : '↓'}
+                    </button>
+                </div>
+            </div>
+
             {packages.length === 0 ? (
                 <div className="empty-state">
                     <p>No approved packages available for data entry.</p>
                 </div>
+            ) : filteredPackages.length === 0 ? (
+                <div className="empty-state">
+                    <p>No packages match the current filters.</p>
+                </div>
             ) : (
                 <div className="packages-grid">
-                    {packages.map((pkg) => {
-                        const progress = getProgressInfo(pkg);
+                    {filteredPackages.map((pkg) => {
+                        const { progress } = pkg;
                         const progressPercentage = progress.percentage;
 
                         return (

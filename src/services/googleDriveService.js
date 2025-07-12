@@ -91,8 +91,8 @@ const getAccessToken = () => {
       if (currentToken && currentToken.expires_in > 0) {
          resolve(currentToken.access_token);
       } else {
-        // No valid token, so request one. This will trigger the GIS popup.
-        tokenClient.requestAccessToken({ prompt: 'consent' });
+        // No valid token, so request one. This will trigger the GIS popup if no active session.
+        tokenClient.requestAccessToken({ prompt: '' });
       }
     } catch (error) {
       reject(error);

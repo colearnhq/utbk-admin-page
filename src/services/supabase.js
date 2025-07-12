@@ -244,9 +244,9 @@ export const getQuestionPackages = async (userId = null) => {
         let query = supabase
             .from('question_packages')
             .select(`
-                *,
-                user:uploaded_by (id, name, email)
-            `);
+                id, title, question_package_number, subject, vendor_name, amount_of_questions, status, user:uploaded_by (id, name, email)
+            `)
+            .eq('status', 'pending');
 
         if (userId) {
             query = query.eq('uploaded_by', userId);
@@ -306,6 +306,73 @@ export const updateQuestionPackageStatus = async (packageId, status, feedback = 
     }
 };
 
+
+export const getPackagesWithProgress = async (userId = null) => {
+    try {
+        // 1. Fetch pending packages with specific columns
+        let packagesQuery = supabase
+            .from('question_packages')
+            .select('id, title, question_package_number, subject, vendor_name, amount_of_questions, status, public_url')
+            .eq('status', 'pending');
+
+        if (userId) {
+            packagesQuery = packagesQuery.eq('uploaded_by', userId);
+        }
+
+        const { data: packages, error: packagesError } = await packagesQuery.order('created_at', { ascending: false });
+
+        if (packagesError) throw packagesError;
+
+        if (!packages || packages.length === 0) {
+            return [];
+        }
+
+        // 2. Get all package IDs
+        const packageIds = packages.map(p => p.id);
+
+        // 3. Fetch all relevant questions in a single query
+        const { data: questions, error: questionsError } = await supabase
+            .from('questions')
+            .select('id, package_id, status')
+            .in('package_id', packageIds);
+
+        if (questionsError) throw questionsError;
+
+        // 4. Create a map for quick question lookup
+        const questionsByPackage = questions.reduce((acc, q) => {
+            if (!acc[q.package_id]) {
+                acc[q.package_id] = [];
+            }
+            acc[q.package_id].push(q);
+            return acc;
+        }, {});
+
+        // 5. Combine packages with their progress
+        const packagesWithProgress = packages.map(pkg => {
+            const packageQuestions = questionsByPackage[pkg.id] || [];
+            const createdQuestions = packageQuestions.length;
+            const revisedQuestions = packageQuestions.filter(q => q.status === 'revised').length;
+            const totalQuestions = pkg.amount_of_questions;
+
+            return {
+                ...pkg,
+                progress: {
+                    created: createdQuestions,
+                    revised: revisedQuestions,
+                    total: totalQuestions,
+                    percentage: totalQuestions > 0 ? (createdQuestions / totalQuestions) * 100 : 0,
+                }
+            };
+        });
+
+        return packagesWithProgress;
+
+    } catch (error) {
+        console.error('Error fetching packages with progress:', error);
+        throw error;
+    }
+};
+
 export const getQuestionPackageById = async (packageId) => {
     try {
         const { data, error } = await supabase
@@ -343,7 +410,7 @@ export const getSubjects = async () => {
 export const getExams = async () => {
     try {
         const { data, error } = await supabase
-            .from('exam_names') // Assuming an 'exams' table exists
+            .from('exam_names')
             .select('id, name')
             .order('name', { ascending: true });
 
@@ -713,13 +780,7 @@ export const getQuestionsByPackage = async (packageId) => {
     try {
         const { data, error } = await supabase
             .from('questions')
-            .select(`
-                *,
-                subject:subjects(id, name),
-                chapter:chapters(id, name),
-                topic:topics(id, name),
-                concept_title:concept_titles(id, name)
-            `)
+            .select('id, status, package_id')
             .eq('package_id', packageId)
             .order('sequence_number', { ascending: true });
 
@@ -1025,11 +1086,10 @@ export const updateRevisionRequest = async (id, updateData) => {
             .update({
                 notes: updateData.notes,
                 evidence_file_url: updateData.evidence_file_url,
-                attachment_type: updateData.attachment_type,
-                attachment_name: updateData.attachment_name,
                 target_role: updateData.target_role,
                 remarks: updateData.remarks,
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                revision_attachment_urls: updateData.revision_attachment_urls // Tambahkan ini
             })
             .eq('id', id)
             .eq('revision_type', 'request')
@@ -1118,12 +1178,11 @@ export const createRevisionRequest = async (requestData) => {
                 target_role: requestData.target_role,
                 notes: requestData.notes,
                 evidence_file_url: requestData.evidence_file_url,
-                attachment_type: requestData.attachment_type,
-                attachment_name: requestData.attachment_name,
                 keywords: requestData.keywords,
                 revision_type: 'request',
                 requested_by: requestData.requested_by,
-                status: 'pending'
+                status: 'pending',
+                revision_attachment_urls: requestData.revision_attachment_urls
             })
             .select();
 
@@ -1151,7 +1210,8 @@ export const createRevisionAcceptance = async (acceptanceData) => {
                 keywords: acceptanceData.keywords,
                 revision_type: 'acceptance',
                 requested_by: acceptanceData.reported_by,
-                status: 'pending'
+                status: 'pending',
+                revision_attachment_urls: acceptanceData.revision_attachment_urls
             })
             .select();
 
@@ -1275,8 +1335,6 @@ export const getRevisionsByUser = async (userId, filters = {}) => {
                 target_role,
                 notes,
                 evidence_file_url,
-                attachment_type,
-                attachment_name,
                 status,
                 response_notes,
                 responded_by,
@@ -1306,7 +1364,7 @@ export const getRevisionsByUser = async (userId, filters = {}) => {
                     topic:topics(id, name),
                     concept_title:concept_titles(id, name)
                 ),
-                package:question_packages(id, title),
+                package:question_packages(id, title, subject),
                 requested_by_user:users!revision_requests_requested_by_fkey(id, name, email),
                 responded_by_user:users!revision_requests_responded_by_fkey(id, name, email)
             `)
@@ -1527,5 +1585,180 @@ export const deleteRevisionAttachments = async (attachments, bucketName = 'revis
             results: [],
             error: error.message
         };
+    }
+};
+
+// QC Data specific functions
+export const getQCUsers = async () => {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('id, name, email')
+            .eq('role', 'qc_data')
+            .is('is_deleted', null)
+            .order('name', { ascending: true });
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching QC users:', error);
+        throw error;
+    }
+};
+
+export const getQCStatistics = async () => {
+    try {
+        const { data, error } = await supabase
+            .from('questions')
+            .select('qc_status');
+
+        if (error) throw error;
+
+        const stats = {
+            totalQuestions: data.length,
+            pendingReview: data.filter(q => q.qc_status === 'pending_review').length,
+            underReview: data.filter(q => q.qc_status === 'under_review').length,
+            approved: data.filter(q => q.qc_status === 'approved').length,
+            rejected: data.filter(q => q.qc_status === 'rejected').length,
+            revisionRequested: data.filter(q => q.qc_status === 'revision_requested').length
+        };
+
+        return stats;
+    } catch (error) {
+        console.error('Error fetching QC statistics:', error);
+        throw error;
+    }
+};
+
+export const getQuestionsForQC = async (status, filters = {}) => {
+    try {
+        let query = supabase
+            .from('questions')
+            .select(`
+                *,
+                subject_name:subjects(name),
+                chapter_name:chapters(name),
+                topic_name:topics(name),
+                concept_title_name:concept_titles(name),
+                creator_name:users!questions_created_by_fkey(name),
+                qc_reviewer_name:users!questions_qc_reviewer_id_fkey(name)
+            `)
+            .eq('qc_status', status)
+            .order('created_at', { ascending: false });
+
+        if (filters.subject) {
+            query = query.eq('subject_id', filters.subject);
+        }
+        if (filters.chapter) {
+            query = query.eq('chapter_id', filters.chapter);
+        }
+        if (filters.topic) {
+            query = query.eq('topic_id', filters.topic);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+
+        // Flatten the nested objects for easier access
+        return data.map(question => ({
+            ...question,
+            subject_name: question.subject_name?.name || 'Unknown',
+            chapter_name: question.chapter_name?.name || 'Unknown',
+            topic_name: question.topic_name?.name || 'Unknown',
+            concept_title_name: question.concept_title_name?.name || 'Unknown',
+            creator_name: question.creator_name?.name || 'Unknown',
+            qc_reviewer_name: question.qc_reviewer_name?.name || null
+        }));
+    } catch (error) {
+        console.error('Error fetching questions for QC:', error);
+        throw error;
+    }
+};
+
+export const submitQCReview = async (reviewData) => {
+    try {
+        const { questionId, reviewerId, difficulty, status, reviewNotes, rejectionNotes, keywords, evidenceFiles, targetRole } = reviewData;
+
+        // Upload evidence files if any
+        let evidenceUrls = [];
+        if (evidenceFiles && evidenceFiles.length > 0) {
+            for (const file of evidenceFiles) {
+                const fileName = generateUniqueFileName(file.name, 'qc_evidence_');
+                const uploadResult = await uploadFileToSupabase(file, 'qc-evidence', fileName);
+                evidenceUrls.push({
+                    name: file.name,
+                    url: uploadResult.publicUrl,
+                    path: uploadResult.path
+                });
+            }
+        }
+
+        // Start transaction-like operations
+        // 1. Create QC review record
+        const qcReviewData = {
+            question_id: questionId,
+            reviewer_id: reviewerId,
+            difficulty_level: difficulty,
+            status: status,
+            review_notes: reviewNotes,
+            rejection_notes: rejectionNotes,
+            keywords: keywords,
+            evidence_attachment_urls: evidenceUrls
+        };
+
+        const { data: qcReview, error: qcError } = await supabase
+            .from('qc_reviews')
+            .insert([qcReviewData])
+            .select();
+
+        if (qcError) throw qcError;
+
+        // 2. Update question with QC status
+        const questionUpdateData = {
+            qc_status: status,
+            qc_reviewer_id: reviewerId,
+            qc_reviewed_at: new Date().toISOString(),
+            qc_difficulty_level: difficulty,
+            updated_at: new Date().toISOString()
+        };
+
+        const { data: updatedQuestion, error: questionError } = await supabase
+            .from('questions')
+            .update(questionUpdateData)
+            .eq('id', questionId)
+            .select();
+
+        if (questionError) throw questionError;
+
+        // 3. Create revision record if needed
+        if (status === 'revision_requested' || status === 'rejected') {
+            const revisionData = {
+                question_id: questionId,
+                package_id: updatedQuestion[0].package_id,
+                target_role: targetRole,
+                notes: rejectionNotes || reviewNotes,
+                keywords: keywords,
+                evidence_file_url: evidenceUrls.length > 0 ? evidenceUrls[0].url : null,
+                revision_attachment_urls: JSON.stringify(evidenceUrls),
+                requested_by: reviewerId,
+                status: 'pending',
+                revision_type: 'request'
+            };
+
+            const { error: revisionError } = await supabase
+                .from('revisions')
+                .insert([revisionData]);
+
+            if (revisionError) throw revisionError;
+        }
+
+        return {
+            qcReview: qcReview[0],
+            question: updatedQuestion[0]
+        };
+    } catch (error) {
+        console.error('Error submitting QC review:', error);
+        throw error;
     }
 };

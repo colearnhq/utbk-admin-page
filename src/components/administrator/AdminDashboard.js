@@ -44,11 +44,10 @@ const AdminDashboard = () => {
                     <p>Register new users and manage user roles and vendors.</p>
                 </Link>
 
-                <div className="dashboard-card disabled">
+                <Link to="/qc" className="dashboard-card">
                     <h3>QC Data</h3>
                     <p>Quality control and data validation tools.</p>
-                    <span className="status-badge">Under Development</span>
-                </div>
+                </Link>
             </div>
         </div>
     );
