@@ -708,6 +708,9 @@ export const getQuestions = async (filters = {}) => {
         if (filters.question_type) {
             query = query.eq('question_type', filters.question_type);
         }
+        if (filters.created_by_user) {
+            query = query.eq('created_by', filters.created_by_user);
+        }
         if (filters.package_id) {
             query = query.eq('package_id', filters.package_id);
         }

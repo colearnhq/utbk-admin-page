@@ -3,6 +3,7 @@ import { getQuestions, getSubjects } from '../../services/supabase';
 import LoadingSpinner from '../common/LoadingSpinner';
 import QuestionPreview from './QuestionPreview';
 import '../../styles/pages/revision-tab.css';
+import { UNSAFE_createClientRoutesWithHMRRevalidationOptOut } from 'react-router-dom';
 
 const QuestionsTab = () => {
     const [questions, setQuestions] = useState([]);
@@ -18,9 +19,17 @@ const QuestionsTab = () => {
     const [filters, setFilters] = useState({
         status: 'all',
         subject: 'all',
-        questionType: 'all'
+        questionType: 'all',
+        pic: 'all'
     });
     const [subjects, setSubjects] = useState([]);
+    const [allQuestions, setAllQuestions] = useState([]);
+    const [pagination, setPagination] = useState({
+        currentPage: 1,
+        itemsPerPage: 10,
+        totalItems: 0,
+        totalPages: 0
+    });
 
     useEffect(() => {
         fetchInitialData();
@@ -28,7 +37,7 @@ const QuestionsTab = () => {
 
     useEffect(() => {
         fetchQuestions();
-    }, [filters]);
+    }, [filters, pagination.currentPage, pagination.itemsPerPage]);
 
     const fetchInitialData = async () => {
         try {
@@ -43,23 +52,31 @@ const QuestionsTab = () => {
         try {
             setLoading(true);
 
-            const apiFilters = {};
-            if (filters.status !== 'all') {
-                apiFilters.status = filters.status === 'success' ? 'active' : filters.status;
-            }
-            if (filters.subject !== 'all') {
-                apiFilters.subject_id = filters.subject;
-            }
-            if (filters.questionType !== 'all') {
-                apiFilters.question_type = filters.questionType;
-            }
+            const allQuestionsData = await getQuestions({
+                ...(filters.status !== 'all' && { status: filters.status === 'success' ? 'active' : filters.status }),
+                ...(filters.subject !== 'all' && { subject_id: filters.subject }),
+                ...(filters.questionType !== 'all' && { question_type: filters.questionType })
+            });
 
-            const questionsData = await getQuestions(apiFilters);
-            setQuestions(questionsData);
+            setAllQuestions(allQuestionsData);
 
-            const totalQuestions = questionsData.length;
-            const successCount = questionsData.filter(q => q.status === 'active').length;
-            const revisedCount = questionsData.filter(q => q.status === 'revised').length;
+            const filteredQuestions = filters.pic === 'all'
+                ? allQuestionsData
+                : allQuestionsData.filter(q => q.created_by_user?.name === filters.pic);
+
+            setQuestions(filteredQuestions);
+
+            const totalQuestions = filteredQuestions.length;
+            const successCount = filteredQuestions.filter(q => q.status === 'active').length;
+            const revisedCount = filteredQuestions.filter(q => q.status === 'revised').length;
+
+            const paginationData = calculatePagination(
+                filteredQuestions.length,
+                pagination.currentPage,
+                pagination.itemsPerPage
+            );
+
+            setPagination(paginationData);
 
             setStats({
                 total: totalQuestions,
@@ -72,6 +89,149 @@ const QuestionsTab = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+
+    const getPICs = () => {
+        const pics = new Set();
+        allQuestions.forEach(question => {
+            if (question?.created_by_user?.name) {
+                pics.add(question.created_by_user.name);
+            }
+        });
+        return Array.from(pics).sort();
+    };
+
+    const calculatePagination = (totalItems, currentPage, itemsPerPage) => {
+        const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+        return {
+            currentPage,
+            itemsPerPage,
+            totalItems,
+            totalPages,
+            startIndex: (currentPage - 1) * itemsPerPage,
+            endIndex: Math.min(currentPage * itemsPerPage, totalItems)
+        }
+    };
+
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= pagination.totalPages) {
+            setPagination(prev => ({
+                ...prev,
+                currentPage: newPage
+            }))
+        }
+    };
+
+    const handleItemsPerPageChange = (newItemsPerPage,) => {
+        setPagination(prev => ({
+            ...prev,
+            itemsPerPage: newItemsPerPage,
+            currentPage: 1
+        }))
+    };
+
+    const getPaginatedQuestions = () => {
+        const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
+        const endIndex = startIndex + pagination.itemsPerPage;
+        return questions.slice(startIndex, endIndex)
+    }
+
+    const PaginationComponent = () => {
+        const { currentPage, totalPages, totalItems, itemsPerPage, startIndex, endIndex } = pagination;
+
+        const getPageNumbers = () => {
+            const pages = [];
+            const maxVisiblePages = 5;
+
+            if (totalPages <= maxVisiblePages) {
+                for (let i = 1; i <= totalPages; i++) {
+                    pages.push(i);
+                }
+            } else {
+                let startPage = Math.max(1, currentPage - 2);
+                let endPage = Math.min(totalPages, currentPage + 2);
+
+                if (currentPage <= 3) {
+                    endPage = maxVisiblePages;
+                } else if (currentPage >= totalPages - 2) {
+                    startPage = totalPages - maxVisiblePages + 1;
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                    pages.push(i);
+                }
+            }
+
+            return pages;
+        };
+
+        if (totalPages <= 1) return null;
+
+        return (
+            <div className="pagination-container">
+                <div className="pagination-info">
+                    <span>
+                        Showing {startIndex + 1}-{endIndex} of {totalItems} questions
+                    </span>
+                    <select
+                        value={itemsPerPage}
+                        onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                        className="items-per-page-select"
+                    >
+                        <option value={5}>5 per page</option>
+                        <option value={10}>10 per page</option>
+                        <option value={20}>20 per page</option>
+                        <option value={50}>50 per page</option>
+                    </select>
+                </div>
+
+                <div className="pagination-controls">
+                    <button
+                        className="pagination-btn"
+                        onClick={() => handlePageChange(1)}
+                        disabled={currentPage === 1}
+                    >
+                        First
+                    </button>
+
+                    <button
+                        className="pagination-btn"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                    >
+                        Previous
+                    </button>
+
+                    {getPageNumbers().map(pageNum => (
+                        <button
+                            key={pageNum}
+                            className={`pagination-btn ${currentPage === pageNum ? 'active' : ''}`}
+                            onClick={() => handlePageChange(pageNum)}
+                        >
+                            {pageNum}
+                        </button>
+                    ))}
+
+                    <button
+                        className="pagination-btn"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                    >
+                        Next
+                    </button>
+
+                    <button
+                        className="pagination-btn"
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={currentPage === totalPages}
+                    >
+                        Last
+                    </button>
+                </div>
+            </div>
+        );
     };
 
     const handlePreview = (question) => {
@@ -176,63 +336,81 @@ const QuestionsTab = () => {
                         <option value="Short Answer">Short Answer</option>
                     </select>
                 </div>
+
+                <div className="filter-group">
+                    <label>PIC:</label>
+                    <select
+                        value={filters.pic}
+                        onChange={(e) => handleFilterChange('pic', e.target.value)}
+                    >
+                        <option value="all">All PICs</option>
+                        {getPICs().map((pic, i) => (
+                            <option key={i} value={pic}>
+                                {pic}
+                            </option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
-            {filteredQuestions.length === 0 ? (
+            {questions.length === 0 ? (
                 <div className="empty-state">
                     <p>No questions found with the selected filters.</p>
                 </div>
             ) : (
-                <div className="questions-list">
-                    {filteredQuestions.map((question) => (
-                        <div key={question.id} className="question-card">
-                            <div className="question-card-header">
-                                <div className="question-meta">
-                                    <span className="question-id">{question.inhouse_id}</span>
-                                    <span
-                                        className={`question-type-on-data-entry ${getQuestionTypeColor(question.question_type)}`}
+                <>
+                    <PaginationComponent />
+                    <div className="questions-list">
+                        {getPaginatedQuestions().map((question) => (
+                            <div key={question.id} className="question-card">
+                                <div className="question-card-header">
+                                    <div className="question-meta">
+                                        <span className="question-id">{question.inhouse_id}</span>
+                                        <span
+                                            className={`question-type-on-data-entry ${getQuestionTypeColor(question.question_type)}`}
+                                        >
+                                            {question.question_type}
+                                        </span>
+                                        <span
+                                            className={`question-status ${getStatusColor(question.status)}`}
+                                        >
+                                            {question.status === 'active' ? '✓ Success' : '⚠ Revised'}
+                                        </span>
+                                    </div>
+                                    <div className="question-date">
+                                        {new Date(question.created_at).toLocaleDateString()}
+                                    </div>
+                                </div>
+
+                                <div className="question-content">
+                                    <div className="tagging-info">
+                                        <span className="tag">{question.subject.name}</span>
+                                        <span className="tag">{question.chapter.name}</span>
+                                        <span className="tag">{question.topic.name}</span>
+                                        <span className="tag">{question.concept_title.name}</span>
+                                    </div>
+
+                                    <div className="question-preview">
+                                        <p>{question.question.substring(0, 100)}...</p>
+                                    </div>
+
+                                    <div className="question-info">
+                                        <span>Created by: {question.created_by_user?.name || 'Unknown'}</span>
+                                    </div>
+                                </div>
+
+                                <div className="question-actions">
+                                    <button
+                                        className="btn btn-outline"
+                                        onClick={() => handlePreview(question)}
                                     >
-                                        {question.question_type}
-                                    </span>
-                                    <span
-                                        className={`question-status ${getStatusColor(question.status)}`}
-                                    >
-                                        {question.status === 'active' ? '✓ Success' : '⚠ Revised'}
-                                    </span>
-                                </div>
-                                <div className="question-date">
-                                    {new Date(question.created_at).toLocaleDateString()}
+                                        Preview
+                                    </button>
                                 </div>
                             </div>
-
-                            <div className="question-content">
-                                <div className="tagging-info">
-                                    <span className="tag">{question.subject.name}</span>
-                                    <span className="tag">{question.chapter.name}</span>
-                                    <span className="tag">{question.topic.name}</span>
-                                    <span className="tag">{question.concept_title.name}</span>
-                                </div>
-
-                                <div className="question-preview">
-                                    <p>{question.question.substring(0, 100)}...</p>
-                                </div>
-
-                                <div className="question-info">
-                                    <span>Created by: {question.created_by_user?.name || 'Unknown'}</span>
-                                </div>
-                            </div>
-
-                            <div className="question-actions">
-                                <button
-                                    className="btn btn-outline"
-                                    onClick={() => handlePreview(question)}
-                                >
-                                    Preview
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                </>
             )}
 
             {showPreview && (
