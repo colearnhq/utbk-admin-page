@@ -354,38 +354,16 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                     }
                     break;
 
-                // FORMAT BARU: Indentation
-                case 'indent-1':
+                case 'indent':
                     if (selectedText) {
-                        newText = text.substring(0, start) + `<div style="margin-left: 20px;">${selectedText}</div>` + text.substring(end);
+                        newText = text.substring(0, start) + `<p style="text-indent: 30px;">${selectedText}</p>` + text.substring(end);
                         newCursorPos = end + 36;
                     } else {
-                        newText = text.substring(0, start) + '<div style="margin-left: 20px;"></div>' + text.substring(end);
+                        newText = text.substring(0, start) + '<p style="text-indent: 30px;"></p>' + text.substring(end);
                         newCursorPos = start + 30;
                     }
                     break;
 
-                case 'indent-2':
-                    if (selectedText) {
-                        newText = text.substring(0, start) + `<div style="margin-left: 40px;">${selectedText}</div>` + text.substring(end);
-                        newCursorPos = end + 36;
-                    } else {
-                        newText = text.substring(0, start) + '<div style="margin-left: 40px;"></div>' + text.substring(end);
-                        newCursorPos = start + 30;
-                    }
-                    break;
-
-                case 'indent-3':
-                    if (selectedText) {
-                        newText = text.substring(0, start) + `<div style="margin-left: 60px;">${selectedText}</div>` + text.substring(end);
-                        newCursorPos = end + 36;
-                    } else {
-                        newText = text.substring(0, start) + '<div style="margin-left: 60px;"></div>' + text.substring(end);
-                        newCursorPos = start + 30;
-                    }
-                    break;
-
-                // FORMAT BARU: List formatting
                 case 'bullet-list':
                     if (selectedText) {
                         newText = text.substring(0, start) + `<ul><li>${selectedText}</li></ul>` + text.substring(end);
@@ -406,7 +384,6 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                     }
                     break;
 
-                // FORMAT BARU: Blockquote
                 case 'blockquote':
                     if (selectedText) {
                         newText = text.substring(0, start) + `<blockquote>${selectedText}</blockquote>` + text.substring(end);
@@ -450,9 +427,7 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
             { type: 'align-justify', label: 'Justify', icon: '⭤⭢', group: 'alignment' },
 
             // Indentation
-            { type: 'indent-1', label: 'Indent 1', icon: '⇥', group: 'indent' },
-            { type: 'indent-2', label: 'Indent 2', icon: '⇥⇥', group: 'indent' },
-            { type: 'indent-3', label: 'Indent 3', icon: '⇥⇥⇥', group: 'indent' },
+            { type: 'indent', label: 'Paragraf dengan Indentasi', icon: '⇥', group: 'indent' },
 
             // Lists and blocks
             { type: 'bullet-list', label: 'Bullet List', icon: '•', group: 'list' },
