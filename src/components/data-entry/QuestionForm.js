@@ -246,6 +246,116 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
         }
     };
 
+    const handleTextFormatting = (textareaRef, formatType) => {
+        if (textareaRef.current) {
+            const textarea = textareaRef.current;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const selectedText = text.substring(start, end);
+
+            let newText = '';
+            let newCursorPos = start;
+
+            switch (formatType) {
+                case 'newline':
+                    newText = text.substring(0, start) + '[\\n]' + text.substring(end);
+                    newCursorPos = start + 4;
+                    break;
+
+                case 'bold':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<strong>${selectedText}</strong>` + text.substring(end);
+                        newCursorPos = end + 4;
+                    } else {
+                        newText = text.substring(0, start) + '<strong></strong>' + text.substring(end);
+                        newCursorPos = start + 2;
+                    }
+                    break;
+
+                case 'italic':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<em>${selectedText}</em>` + text.substring(end);
+                        newCursorPos = end + 2;
+                    } else {
+                        newText = text.substring(0, start) + '<em></em>' + text.substring(end);
+                        newCursorPos = start + 1;
+                    }
+                    break;
+
+                case 'underline':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<u>${selectedText}</u>` + text.substring(end);
+                        newCursorPos = end + 7;
+                    } else {
+                        newText = text.substring(0, start) + '<u></u>' + text.substring(end);
+                        newCursorPos = start + 3;
+                    }
+                    break;
+
+                case 'subscript':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<sub>${selectedText}</sub>` + text.substring(end);
+                        newCursorPos = end + 11;
+                    } else {
+                        newText = text.substring(0, start) + '<sub></sub>' + text.substring(end);
+                        newCursorPos = start + 5;
+                    }
+                    break;
+
+                case 'superscript':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<sup>${selectedText}</sup>` + text.substring(end);
+                        newCursorPos = end + 11;
+                    } else {
+                        newText = text.substring(0, start) + '<sup></sup>' + text.substring(end);
+                        newCursorPos = start + 5;
+                    }
+                    break;
+
+                default:
+                    return;
+            }
+
+            setFormData(prev => ({
+                ...prev,
+                [textarea.name]: newText
+            }));
+
+            setTimeout(() => {
+                textarea.selectionStart = textarea.selectionEnd = newCursorPos;
+                textarea.focus();
+            }, 0);
+        }
+    };
+
+    const TextFormattingToolbar = ({ textareaRef, targetField }) => {
+        const formatButtons = [
+            { type: 'newline', label: 'New Line', icon: '↵' },
+            { type: 'bold', label: 'Bold', icon: 'B' },
+            { type: 'italic', label: 'Italic', icon: 'I' },
+            { type: 'underline', label: 'Underline', icon: 'U' },
+            { type: 'subscript', label: 'Subscript', icon: 'X₂' },
+            { type: 'superscript', label: 'Superscript', icon: 'X²' },
+        ];
+
+        return (
+            <div className="formatting-toolbar">
+                {formatButtons.map(button => (
+                    <button
+                        key={button.type}
+                        type="button"
+                        className="btn-format"
+                        onClick={() => handleTextFormatting(textareaRef, button.type)}
+                        title={button.label}
+                    >
+                        {button.icon}
+                    </button>
+                ))}
+            </div>
+        );
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setSubmitting(true);
@@ -435,6 +545,7 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
 
                 <div className="form-group">
                     <label htmlFor="question">Question</label>
+                    <TextFormattingToolbar textareaRef={questionTextareaRef} targetField="question" />
                     <textarea
                         ref={questionTextareaRef}
                         id="question"
@@ -549,6 +660,7 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
 
                 <div className="form-group">
                     <label htmlFor="solution">Solution including Concepts</label>
+                    <TextFormattingToolbar textareaRef={solutionTextareaRef} targetField="solution" />
                     <textarea
                         ref={solutionTextareaRef}
                         id="solution"
