@@ -1016,36 +1016,157 @@
     min-width: 120px;
 }
 
+/* Enhanced Formatting Toolbar Styles */
 .formatting-toolbar {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 12px;
+    padding: 10px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
     margin-bottom: 8px;
-    padding: 1rem;
-    background: #f5f5f5;
-    border-radius: 4px;
-    border: 1px solid #ddd;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.toolbar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.group-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.group-buttons {
+    display: flex;
+    gap: 2px;
 }
 
 .btn-format {
-    padding: 10px 20px;
-    border: 1px solid #ccc;
+    min-width: 32px;
+    height: 32px;
+    border: 1px solid #ced4da;
     background: white;
-    border-radius: 3px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
-    font-size: 15px;
-    min-width: 24px;
-    transition: all 0.2s;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
 }
 
 .btn-format:hover {
     background: #e9ecef;
-    border-color: #999;
+    border-color: #adb5bd;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-format:active {
-    background: #dee2e6;
-    transform: translateY(1px);
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Specific styling for different button types */
+.btn-format[title*="Bold"] {
+    font-weight: 900;
+}
+
+.btn-format[title*="Italic"] {
+    font-style: italic;
+}
+
+.btn-format[title*="Underline"] {
+    text-decoration: underline;
+}
+
+.btn-format[title*="Align"] {
+    color: #007bff;
+}
+
+.btn-format[title*="Indent"] {
+    color: #28a745;
+}
+
+.btn-format[title*="List"],
+.btn-format[title*="Quote"] {
+    color: #6610f2;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .formatting-toolbar {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .toolbar-group {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .group-label {
+        min-width: 60px;
+        margin-bottom: 0;
+    }
+
+    .group-buttons {
+        flex-wrap: wrap;
+    }
+
+    .btn-format {
+        min-width: 28px;
+        height: 28px;
+        font-size: 11px;
+    }
+}
+
+/* Tooltip enhancement */
+.btn-format[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 5px;
+}
+
+.btn-format[title]:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: #333;
+    z-index: 1000;
+}
+
+/* Additional spacing for form group */
+.form-group .formatting-toolbar {
+    margin-bottom: 0;
+}
+
+.form-group .formatting-toolbar+textarea {
+    margin-top: 8px;
 }
 
 /* PDF Viewer Integration */

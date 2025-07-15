@@ -266,20 +266,20 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                 case 'bold':
                     if (selectedText) {
                         newText = text.substring(0, start) + `<strong>${selectedText}</strong>` + text.substring(end);
-                        newCursorPos = end + 4;
+                        newCursorPos = end + 17;
                     } else {
                         newText = text.substring(0, start) + '<strong></strong>' + text.substring(end);
-                        newCursorPos = start + 2;
+                        newCursorPos = start + 8;
                     }
                     break;
 
                 case 'italic':
                     if (selectedText) {
                         newText = text.substring(0, start) + `<em>${selectedText}</em>` + text.substring(end);
-                        newCursorPos = end + 2;
+                        newCursorPos = end + 9;
                     } else {
                         newText = text.substring(0, start) + '<em></em>' + text.substring(end);
-                        newCursorPos = start + 1;
+                        newCursorPos = start + 4;
                     }
                     break;
 
@@ -313,6 +313,110 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                     }
                     break;
 
+                // FORMAT BARU: Text Alignment
+                case 'align-left':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<div style="text-align: left;">${selectedText}</div>` + text.substring(end);
+                        newCursorPos = end + 35;
+                    } else {
+                        newText = text.substring(0, start) + '<div style="text-align: left;"></div>' + text.substring(end);
+                        newCursorPos = start + 29;
+                    }
+                    break;
+
+                case 'align-center':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<div style="text-align: center;">${selectedText}</div>` + text.substring(end);
+                        newCursorPos = end + 37;
+                    } else {
+                        newText = text.substring(0, start) + '<div style="text-align: center;"></div>' + text.substring(end);
+                        newCursorPos = start + 31;
+                    }
+                    break;
+
+                case 'align-right':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<div style="text-align: right;">${selectedText}</div>` + text.substring(end);
+                        newCursorPos = end + 36;
+                    } else {
+                        newText = text.substring(0, start) + '<div style="text-align: right;"></div>' + text.substring(end);
+                        newCursorPos = start + 30;
+                    }
+                    break;
+
+                case 'align-justify':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<div style="text-align: justify;">${selectedText}</div>` + text.substring(end);
+                        newCursorPos = end + 38;
+                    } else {
+                        newText = text.substring(0, start) + '<div style="text-align: justify;"></div>' + text.substring(end);
+                        newCursorPos = start + 32;
+                    }
+                    break;
+
+                // FORMAT BARU: Indentation
+                case 'indent-1':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<div style="margin-left: 20px;">${selectedText}</div>` + text.substring(end);
+                        newCursorPos = end + 36;
+                    } else {
+                        newText = text.substring(0, start) + '<div style="margin-left: 20px;"></div>' + text.substring(end);
+                        newCursorPos = start + 30;
+                    }
+                    break;
+
+                case 'indent-2':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<div style="margin-left: 40px;">${selectedText}</div>` + text.substring(end);
+                        newCursorPos = end + 36;
+                    } else {
+                        newText = text.substring(0, start) + '<div style="margin-left: 40px;"></div>' + text.substring(end);
+                        newCursorPos = start + 30;
+                    }
+                    break;
+
+                case 'indent-3':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<div style="margin-left: 60px;">${selectedText}</div>` + text.substring(end);
+                        newCursorPos = end + 36;
+                    } else {
+                        newText = text.substring(0, start) + '<div style="margin-left: 60px;"></div>' + text.substring(end);
+                        newCursorPos = start + 30;
+                    }
+                    break;
+
+                // FORMAT BARU: List formatting
+                case 'bullet-list':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<ul><li>${selectedText}</li></ul>` + text.substring(end);
+                        newCursorPos = end + 15;
+                    } else {
+                        newText = text.substring(0, start) + '<ul><li></li></ul>' + text.substring(end);
+                        newCursorPos = start + 8;
+                    }
+                    break;
+
+                case 'number-list':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<ol><li>${selectedText}</li></ol>` + text.substring(end);
+                        newCursorPos = end + 15;
+                    } else {
+                        newText = text.substring(0, start) + '<ol><li></li></ol>' + text.substring(end);
+                        newCursorPos = start + 8;
+                    }
+                    break;
+
+                // FORMAT BARU: Blockquote
+                case 'blockquote':
+                    if (selectedText) {
+                        newText = text.substring(0, start) + `<blockquote>${selectedText}</blockquote>` + text.substring(end);
+                        newCursorPos = end + 25;
+                    } else {
+                        newText = text.substring(0, start) + '<blockquote></blockquote>' + text.substring(end);
+                        newCursorPos = start + 12;
+                    }
+                    break;
+
                 default:
                     return;
             }
@@ -331,26 +435,58 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
 
     const TextFormattingToolbar = ({ textareaRef, targetField }) => {
         const formatButtons = [
-            { type: 'newline', label: 'New Line', icon: '↵' },
-            { type: 'bold', label: 'Bold', icon: 'B' },
-            { type: 'italic', label: 'Italic', icon: 'I' },
-            { type: 'underline', label: 'Underline', icon: 'U' },
-            { type: 'subscript', label: 'Subscript', icon: 'X₂' },
-            { type: 'superscript', label: 'Superscript', icon: 'X²' },
+            // Basic formatting
+            { type: 'newline', label: 'New Line', icon: '↵', group: 'basic' },
+            { type: 'bold', label: 'Bold', icon: 'B', group: 'basic' },
+            { type: 'italic', label: 'Italic', icon: 'I', group: 'basic' },
+            { type: 'underline', label: 'Underline', icon: 'U', group: 'basic' },
+            { type: 'subscript', label: 'Subscript', icon: 'X₂', group: 'basic' },
+            { type: 'superscript', label: 'Superscript', icon: 'X²', group: 'basic' },
+
+            // Text alignment
+            { type: 'align-left', label: 'Align Left', icon: '⭤', group: 'alignment' },
+            { type: 'align-center', label: 'Align Center', icon: '⭧', group: 'alignment' },
+            { type: 'align-right', label: 'Align Right', icon: '⭢', group: 'alignment' },
+            { type: 'align-justify', label: 'Justify', icon: '⭤⭢', group: 'alignment' },
+
+            // Indentation
+            { type: 'indent-1', label: 'Indent 1', icon: '⇥', group: 'indent' },
+            { type: 'indent-2', label: 'Indent 2', icon: '⇥⇥', group: 'indent' },
+            { type: 'indent-3', label: 'Indent 3', icon: '⇥⇥⇥', group: 'indent' },
+
+            // Lists and blocks
+            { type: 'bullet-list', label: 'Bullet List', icon: '•', group: 'list' },
+            { type: 'number-list', label: 'Number List', icon: '1.', group: 'list' },
+            { type: 'blockquote', label: 'Quote', icon: '❝', group: 'list' },
         ];
+
+        const groupedButtons = formatButtons.reduce((groups, button) => {
+            if (!groups[button.group]) {
+                groups[button.group] = [];
+            }
+            groups[button.group].push(button);
+            return groups;
+        }, {});
 
         return (
             <div className="formatting-toolbar">
-                {formatButtons.map(button => (
-                    <button
-                        key={button.type}
-                        type="button"
-                        className="btn-format"
-                        onClick={() => handleTextFormatting(textareaRef, button.type)}
-                        title={button.label}
-                    >
-                        {button.icon}
-                    </button>
+                {Object.entries(groupedButtons).map(([groupName, buttons]) => (
+                    <div key={groupName} className="toolbar-group">
+                        <span className="group-label">{groupName}</span>
+                        <div className="group-buttons">
+                            {buttons.map(button => (
+                                <button
+                                    key={button.type}
+                                    type="button"
+                                    className="btn-format"
+                                    onClick={() => handleTextFormatting(textareaRef, button.type)}
+                                    title={button.label}
+                                >
+                                    {button.icon}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 ))}
             </div>
         );
