@@ -301,7 +301,7 @@ const Revision = () => {
                             <th>Question ID</th>
                             <th>Question Preview</th>
                             <th>Keywords</th>
-                            <th>Questions Package</th>
+                            <th>Previous Package</th>
                             <th>Evidence Attachment</th>
                             <th>Notes</th>
                             <th>Requested By</th>
@@ -340,7 +340,7 @@ const Revision = () => {
                                             name: 'Question Package File'
                                         })}
                                     >
-                                        View Package
+                                        View Previous Package
                                     </button> : <span className="null-value">-</span>}
                                 </td>
                                 <td className="evidence-cell">
@@ -368,7 +368,7 @@ const Revision = () => {
                                             </div>
                                             {revision.revision_attachment_urls && revision.revision_attachment_urls.length > 0 && (
                                                 <div className="response-attachments">
-                                                    <strong>Attachments:</strong>
+                                                    <strong>Revised Package:</strong>
                                                     {JSON.parse(revision.revision_attachment_urls).map((attachment, index) => (
                                                         <a
                                                             key={index}
