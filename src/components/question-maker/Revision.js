@@ -14,6 +14,7 @@ const Revision = () => {
     const [responseNotes, setResponseNotes] = useState('');
     const [selectedRevision, setSelectedRevision] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [showAttachment, setShowAttachment] = useState(null);
 
     // Question preview modal states
     const [showQuestionPreview, setShowQuestionPreview] = useState(false);
@@ -41,7 +42,6 @@ const Revision = () => {
                     });
 
                 } else {
-                    // For history, get both approved and rejected revisions
                     const approvedRevisions = await getRevisions({
                         target_role: 'question_maker',
                         status: 'approved'
@@ -68,6 +68,23 @@ const Revision = () => {
 
         fetchRevisions();
     }, [userData, activeTab]);
+
+    const handleViewAttachment = (attachment) => {
+        setShowAttachment(attachment);
+    };
+
+    const getFileType = (url) => {
+        const fileName = url;
+        const extension = fileName.split('.').pop().toLowerCase();
+
+        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension)) {
+            return 'image';
+        } else if (['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(extension)) {
+            return 'document';
+        } else {
+            return 'file';
+        }
+    };
 
     const handleFileSelect = (event) => {
         const files = Array.from(event.target.files);
@@ -133,7 +150,6 @@ const Revision = () => {
                 fileData = await uploadFiles();
             }
 
-            // Check if this is an easy question being approved
             const revision = revisions.find(r => r.id === revisionId);
             if (newStatus === 'approved' && revision?.remarks === 'EASY_QUESTION_REVISION') {
                 // Use the new approve function for easy questions
@@ -250,7 +266,7 @@ const Revision = () => {
             </div>
         );
     };
-
+    console.log(`cek revisions: ${JSON.stringify(revisions)}`)
     return (
         <div className="revision-container">
             <div className="revision-header">
@@ -285,6 +301,7 @@ const Revision = () => {
                             <th>Question ID</th>
                             <th>Question Preview</th>
                             <th>Keywords</th>
+                            <th>Questions Package</th>
                             <th>Evidence Attachment</th>
                             <th>Notes</th>
                             <th>Requested By</th>
@@ -313,6 +330,18 @@ const Revision = () => {
                                 </td>
                                 <td className="keywords-cell">
                                     {revision.keywords ? renderKeywords(revision.keywords) : <span className="null-value">-</span>}
+                                </td>
+                                <td className="question-package-cell">
+                                    {revision.package ? <button
+                                        className="btn btn-outline btn-sm"
+                                        onClick={() => handleViewAttachment({
+                                            url: revision?.package?.public_url,
+                                            type: getFileType(revision?.package?.public_url),
+                                            name: 'Question Package File'
+                                        })}
+                                    >
+                                        View Package
+                                    </button> : <span className="null-value">-</span>}
                                 </td>
                                 <td className="evidence-cell">
                                     {renderEvidenceAttachment(revision) || <span className="null-value">-</span>}
@@ -491,6 +520,45 @@ const Revision = () => {
                                         Approve
                                     </button>
                                 </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Attachment Viewer Modal */}
+            {showAttachment && (
+                <div className="attachment-modal">
+                    <div className="attachment-modal-content">
+                        <div className="attachment-modal-header">
+                            <h3>Attachment: {showAttachment.name}</h3>
+                            <button
+                                className="btn btn-close"
+                                onClick={() => setShowAttachment(null)}
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="attachment-viewer">
+                            {showAttachment.type === 'image' ? (
+                                <img
+                                    src={showAttachment.url}
+                                    alt={showAttachment.name}
+                                    style={{ maxWidth: '100%', maxHeight: '80vh' }}
+                                />
+                            ) : showAttachment.type === 'document' ? (
+                                <iframe
+                                    src={showAttachment.url}
+                                    title={showAttachment.name}
+                                    style={{ width: '100%', height: '80vh' }}
+                                />
+                            ) : (
+                                <div className="attachment-info">
+                                    <p>File: {showAttachment.name}</p>
+                                    <a href={showAttachment.url} target="_blank" rel="noopener noreferrer">
+                                        Open in new tab
+                                    </a>
+                                </div>
                             )}
                         </div>
                     </div>

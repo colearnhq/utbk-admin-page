@@ -879,7 +879,7 @@ export const getRevisions = async (filters = {}) => {
             .from('revisions')
             .select(`
                 *,
-                package:question_packages(id, title, subject),
+                package:question_packages(id, title, subject, public_url),
                 question:questions(
                     id,
                     inhouse_id,
@@ -1487,7 +1487,7 @@ export const getRevisionsWithAttachments = async (filters = {}) => {
             .from('revisions')
             .select(`
                 *,
-                package:question_packages(id, title, subject),
+                package:question_packages(id, title, subject, public_url),
                 requested_by_user:users!revision_requests_requested_by_fkey(id, name),
                 responded_by_user:users!revision_requests_responded_by_fkey(id, name)
             `)
