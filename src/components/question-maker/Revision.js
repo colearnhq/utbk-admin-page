@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase, getRevisions, updateRevisionStatus, updateQuestion } from '../../services/supabase';
+import { supabase, getRevisions, updateRevisionStatus, updateQuestion, approveQuestionMakerRevision } from '../../services/supabase';
 import { uploadFileToSupabase } from '../../services/supabase-storage';
+import QuestionPreview from '../data-entry/QuestionPreview';
 import '../../styles/pages/question-maker.css';
 
 const Revision = () => {
@@ -13,6 +14,10 @@ const Revision = () => {
     const [responseNotes, setResponseNotes] = useState('');
     const [selectedRevision, setSelectedRevision] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Question preview modal states
+    const [showQuestionPreview, setShowQuestionPreview] = useState(false);
+    const [previewQuestionData, setPreviewQuestionData] = useState(null);
 
     // File upload states
     const [selectedFiles, setSelectedFiles] = useState([]);
@@ -28,11 +33,30 @@ const Revision = () => {
             setError(null);
 
             try {
-                const statusFilter = activeTab === 'pending' ? 'pending' : 'approved';
-                const fetchedRevisions = await getRevisions({
-                    target_role: 'question_maker',
-                    status: statusFilter
-                });
+                let fetchedRevisions;
+                if (activeTab === 'pending') {
+                    fetchedRevisions = await getRevisions({
+                        target_role: 'question_maker',
+                        status: 'pending'
+                    });
+
+                } else {
+                    // For history, get both approved and rejected revisions
+                    const approvedRevisions = await getRevisions({
+                        target_role: 'question_maker',
+                        status: 'approved'
+                    });
+                    const rejectedRevisions = await getRevisions({
+                        target_role: 'question_maker',
+                        status: 'rejected'
+                    });
+                    const handoverRevisions = await getRevisions({
+                        target_role: 'question_maker',
+                        status: 'send to data-entry'
+                    });
+                    fetchedRevisions = [...handoverRevisions, ...approvedRevisions, ...rejectedRevisions]
+                        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                }
                 setRevisions(fetchedRevisions);
             } catch (err) {
                 setError(`Error fetching revisions: ${err.message}`);
@@ -109,7 +133,16 @@ const Revision = () => {
                 fileData = await uploadFiles();
             }
 
-            await updateRevisionStatus(revisionId, newStatus, responseNotes, userData.id, fileData);
+            // Check if this is an easy question being approved
+            const revision = revisions.find(r => r.id === revisionId);
+            if (newStatus === 'approved' && revision?.remarks === 'EASY_QUESTION_REVISION') {
+                // Use the new approve function for easy questions
+                await approveQuestionMakerRevision(revisionId, responseNotes, fileData, userData.id);
+            } else {
+                // Use existing logic for other cases
+                await updateRevisionStatus(revisionId, newStatus, responseNotes, userData.id, fileData);
+            }
+
             setRevisions(revisions.filter(r => r.id !== revisionId));
             closeModal();
         } catch (err) {
@@ -131,12 +164,91 @@ const Revision = () => {
         setError(null);
     };
 
+    const handleQuestionPreview = (revision) => {
+        if (!revision.question) return;
+
+        // Transform the question data to match QuestionPreview component expectations
+        const questionData = {
+            ...revision.question,
+            subject_name: revision.question.subject?.name || 'Unknown',
+            exam: revision.question.exam || 'UTBK-SNBT'
+        };
+
+        setPreviewQuestionData(questionData);
+        setShowQuestionPreview(true);
+    };
+
+    const closeQuestionPreview = () => {
+        setShowQuestionPreview(false);
+        setPreviewQuestionData(null);
+    };
+
     const formatFileSize = (bytes) => {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    const truncateText = (text, maxLength = 100) => {
+        if (!text) return null;
+        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    };
+
+    const renderKeywords = (keywords) => {
+        if (!keywords || keywords.length === 0) return null;
+        return (
+            <div className="keywords-container">
+                {keywords.map((keyword, index) => (
+                    <span key={index} className="keyword-tag">
+                        {keyword}
+                    </span>
+                ))}
+            </div>
+        );
+    };
+
+    const renderEvidenceAttachment = (revision) => {
+        const hasEvidenceFile = revision.evidence_file_url;
+        const hasRevisionAttachments = revision.revision_attachment_urls;
+
+        if (!hasEvidenceFile && !hasRevisionAttachments) {
+            return null;
+        }
+
+        return (
+            <div className="evidence-attachments">
+                {hasEvidenceFile && (
+                    <a
+                        href={revision.evidence_file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="evidence-link"
+                    >
+                        Evidence File
+                    </a>
+                )}
+                {hasRevisionAttachments && (() => {
+                    try {
+                        const attachments = JSON.parse(revision.revision_attachment_urls);
+                        return attachments.map((attachment, index) => (
+                            <a
+                                key={index}
+                                href={attachment.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="evidence-link"
+                            >
+                                {attachment.name}
+                            </a>
+                        ));
+                    } catch (e) {
+                        return null;
+                    }
+                })()}
+            </div>
+        );
     };
 
     return (
@@ -171,9 +283,13 @@ const Revision = () => {
                         <tr>
                             <th>Package</th>
                             <th>Question ID</th>
+                            <th>Question Preview</th>
+                            <th>Keywords</th>
+                            <th>Evidence Attachment</th>
                             <th>Notes</th>
                             <th>Requested By</th>
                             <th>Status</th>
+                            <th>Type</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -181,10 +297,38 @@ const Revision = () => {
                         {revisions.map(revision => (
                             <tr key={revision.id}>
                                 <td>{revision.package?.title || 'N/A'}</td>
-                                <td>{revision.question_id || 'N/A'}</td>
+                                <td>{revision?.question?.inhouse_id || revision.question_id || 'N/A'}</td>
+                                <td className="question-preview-cell">
+                                    {revision.question?.question ? (
+                                        <button
+                                            className="btn btn-preview"
+                                            onClick={() => handleQuestionPreview(revision)}
+                                            title="View full question with options and solution"
+                                        >
+                                            Preview
+                                        </button>
+                                    ) : (
+                                        <span className="null-value">-</span>
+                                    )}
+                                </td>
+                                <td className="keywords-cell">
+                                    {revision.keywords ? renderKeywords(revision.keywords) : <span className="null-value">-</span>}
+                                </td>
+                                <td className="evidence-cell">
+                                    {renderEvidenceAttachment(revision) || <span className="null-value">-</span>}
+                                </td>
                                 <td>{revision.notes}</td>
                                 <td>{revision.requested_by_user?.name || 'N/A'}</td>
-                                <td>{revision.status}</td>
+                                <td>
+                                    <span className={`status-badge ${revision.remarks === 'EASY_QUESTION_REVISION' ? 'revision-requested' : revision.status}`}>
+                                        {revision.status}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span className={`revision-type ${revision.remarks === 'EASY_QUESTION_REVISION' ? 'easy' : 'normal'}`}>
+                                        {revision.remarks === 'EASY_QUESTION_REVISION' ? 'Easy' : 'Normal'}
+                                    </span>
+                                </td>
                                 <td>
                                     {activeTab === 'pending' ? (
                                         <button onClick={() => openModal(revision)}>Respond</button>
@@ -240,7 +384,7 @@ const Revision = () => {
                                 </div>
                                 <div className="detail-item">
                                     <span className="detail-label">Question ID:</span>
-                                    <span className="detail-value">{selectedRevision.question_id || 'N/A'}</span>
+                                    <span className="detail-value">{selectedRevision?.question?.inhouse_id || selectedRevision.question_id || 'N/A'}</span>
                                 </div>
                                 <div className="detail-item">
                                     <span className="detail-label">Original Notes:</span>
@@ -260,7 +404,7 @@ const Revision = () => {
                             </div>
 
                             <div className="form-group">
-                                <label className="form-label">Attachments (Optional)</label>
+                                <label className="form-label">Attachment</label>
                                 <div className="file-upload-area">
                                     <input
                                         type="file"
@@ -268,12 +412,13 @@ const Revision = () => {
                                         onChange={handleFileSelect}
                                         className="file-input"
                                         id="file-upload"
-                                        accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif"
+                                        accept=".pdf"
+                                        required
                                     />
                                     <label htmlFor="file-upload" className="file-upload-label">
                                         <div className="upload-icon">📁</div>
-                                        <span>Click to upload files or drag and drop</span>
-                                        <small>PDF, DOC, DOCX, TXT, JPG, PNG, GIF (Max 10MB each)</small>
+                                        <span>Click to upload file</span><br />
+                                        <small>Only receive PDF extenstion</small>
                                     </label>
                                 </div>
 
@@ -320,23 +465,44 @@ const Revision = () => {
                             >
                                 Cancel
                             </button>
-                            <button
-                                className="btn btn-danger"
-                                onClick={() => handleResponse(selectedRevision.id, 'rejected')}
-                                disabled={isUploading || !responseNotes}
-                            >
-                                Reject
-                            </button>
-                            <button
-                                className="btn btn-success"
-                                onClick={() => handleResponse(selectedRevision.id, 'approved')}
-                                disabled={isUploading || !responseNotes}
-                            >
-                                Approve
-                            </button>
+                            {selectedRevision?.remarks === 'EASY_QUESTION_REVISION' ? (
+                                // Easy question - only approve button (auto sends to Data Entry)
+                                <button
+                                    className="btn btn-success"
+                                    onClick={() => handleResponse(selectedRevision.id, 'approved')}
+                                    disabled={isUploading || !responseNotes}
+                                >
+                                    Approve & Send to Data Entry
+                                </button>
+                            ) : (
+                                <>
+                                    <button
+                                        className="btn btn-danger"
+                                        onClick={() => handleResponse(selectedRevision.id, 'rejected')}
+                                        disabled={isUploading || !responseNotes}
+                                    >
+                                        Reject
+                                    </button>
+                                    <button
+                                        className="btn btn-success"
+                                        onClick={() => handleResponse(selectedRevision.id, 'approved')}
+                                        disabled={isUploading || !responseNotes}
+                                    >
+                                        Approve
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Question Preview Modal */}
+            {showQuestionPreview && previewQuestionData && (
+                <QuestionPreview
+                    data={previewQuestionData}
+                    onClose={closeQuestionPreview}
+                />
             )}
         </div>
     );

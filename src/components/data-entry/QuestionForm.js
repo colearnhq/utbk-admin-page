@@ -33,16 +33,9 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    
+
     const questionTextareaRef = useRef(null);
     const solutionTextareaRef = useRef(null);
-
-    useEffect(() => {
-        loadSubjects();
-        if (initialData) {
-            setFormData(initialData);
-        }
-    }, [initialData]);
 
     useEffect(() => {
         if (formData.subject_id) {
@@ -118,6 +111,71 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
         }
     };
 
+    const processExistingAttachments = (attachments) => {
+        if (!attachments) return [];
+
+        let parsedAttachments = [];
+
+        // Jika berupa string JSON, parse dulu
+        if (typeof attachments === 'string') {
+            try {
+                parsedAttachments = JSON.parse(attachments);
+            } catch (error) {
+                console.error('Error parsing attachments:', error);
+                return [];
+            }
+        } else if (Array.isArray(attachments)) {
+            parsedAttachments = attachments;
+        } else {
+            return [];
+        }
+
+        return parsedAttachments.map(attachment => ({
+            ...attachment,
+            name: attachment.originalName || attachment.fileName || `attachment-${Date.now()}`,
+            isExisting: true,
+            size: attachment.size || 0,
+            type: attachment.type || 'application/octet-stream'
+        }));
+    };
+
+    useEffect(() => {
+        loadSubjects();
+        if (initialData) {
+            setFormData(prevData => ({
+                ...prevData,
+                ...initialData,
+                question_attachments: processExistingAttachments(initialData.question_attachments),
+                solution_attachments: processExistingAttachments(initialData.solution_attachments)
+            }));
+        }
+    }, []);
+
+    const uploadAttachments = async (attachments, type) => {
+        const uploadedAttachments = [];
+        for (const file of attachments) {
+            // Jika file sudah ada (existing), langsung gunakan
+            if (file.isExisting || file.publicUrl) {
+                uploadedAttachments.push(file);
+                continue;
+            }
+
+            // Proses upload untuk file baru
+            const fileName = generateUniqueFileName(file.name, `${type}_`);
+            const supabaseUpload = await uploadFileToSupabase(file, `${type}-attachments`, fileName, null);
+            const googleDriveResult = await uploadFileToGoogleDrive(file, fileName);
+
+            uploadedAttachments.push({
+                fileName: fileName,
+                publicUrl: supabaseUpload.publicUrl,
+                googleDriveId: googleDriveResult.fileId,
+                googleDriveUrl: googleDriveResult.fileUrl,
+                originalName: file.name
+            });
+        }
+        return uploadedAttachments;
+    };
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -148,10 +206,16 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
 
     const handleFileChange = (e) => {
         const { name, files } = e.target;
+        const newFiles = Array.from(files);
+
+        console.log(`Adding ${newFiles.length} files to ${name}:`, newFiles); // Debug log
+
         setFormData(prev => ({
             ...prev,
-            [name]: [...(prev[name] || []), ...Array.from(files)]
+            [name]: [...(prev[name] || []), ...newFiles]
         }));
+
+        e.target.value = '';
     };
 
     const handleRemoveAttachment = (fieldName, indexToRemove) => {
@@ -169,13 +233,12 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
             const end = textarea.selectionEnd;
             const text = textarea.value;
             const newText = text.substring(0, start) + placeholder + text.substring(end);
-            
+
             setFormData(prev => ({
                 ...prev,
                 [textarea.name]: newText
             }));
 
-            // Move cursor to after the inserted placeholder
             setTimeout(() => {
                 textarea.selectionStart = textarea.selectionEnd = start + placeholder.length;
                 textarea.focus();
@@ -193,12 +256,12 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
             const uploadAttachments = async (attachments, type) => {
                 const uploadedAttachments = [];
                 for (const file of attachments) {
-                    if (file.publicUrl) { // Already uploaded
+                    if (file.publicUrl) {
                         uploadedAttachments.push(file);
                         continue;
                     }
                     const fileName = generateUniqueFileName(file.name, `${type}_`);
-                    
+
                     const supabaseUpload = await uploadFileToSupabase(file, `${type}-attachments`, fileName, null);
                     const googleDriveResult = await uploadFileToGoogleDrive(file, fileName);
 
@@ -218,7 +281,6 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
 
             await onSubmit(processedFormData);
 
-            // Reset form
             setFormData({
                 exam: 'UTBK-SNBT',
                 subject_id: '',
@@ -248,10 +310,17 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
 
     const handlePreview = () => {
         const subject = dropdownData.subjects.find(s => s.id === formData.subject_id);
-        onPreview({
+
+        const previewData = {
             ...formData,
-            subject_name: subject ? subject.name : ''
-        });
+            subject_name: subject ? subject.name : '',
+            // Kirim attachment data lengkap ke preview
+            question_attachments: formData.question_attachments || [],
+            solution_attachments: formData.solution_attachments || []
+        };
+
+        console.log('Preview data being sent:', previewData); // Debug log
+        onPreview(previewData);
     };
 
     if (loading) return <LoadingSpinner message="Loading form data..." />;
@@ -389,13 +458,34 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                         multiple
                     />
                     <div className="attachments-list">
-                        {formData.question_attachments.map((file, index) => (
-                            <div key={index} className="attachment-item">
-                                <span>{file.name}</span>
-                                <button type="button" className="btn-insert" onClick={() => handleInsertPlaceholder(questionTextareaRef, file.name)}>Insert</button>
-                                <button type="button" className="btn-remove" onClick={() => handleRemoveAttachment('question_attachments', index)}>Remove</button>
-                            </div>
-                        ))}
+                        {formData.question_attachments.map((file, index) => {
+                            const displayName = file.name || file.originalName || file.fileName || `attachment-${index}`;
+                            return (
+                                <div key={index} className="attachment-item">
+                                    <span>{displayName}</span>
+                                    {file.isExisting && <span className="existing-badge">Existing</span>}
+                                    {file.publicUrl && (
+                                        <a href={file.publicUrl} target="_blank" rel="noopener noreferrer" className="btn-view">
+                                            View
+                                        </a>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className="btn-insert"
+                                        onClick={() => handleInsertPlaceholder(questionTextareaRef, displayName)}
+                                    >
+                                        Insert
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn-remove"
+                                        onClick={() => handleRemoveAttachment('question_attachments', index)}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -482,13 +572,34 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                         multiple
                     />
                     <div className="attachments-list">
-                        {formData.solution_attachments.map((file, index) => (
-                            <div key={index} className="attachment-item">
-                                <span>{file.name}</span>
-                                <button type="button" className="btn-insert" onClick={() => handleInsertPlaceholder(solutionTextareaRef, file.name)}>Insert</button>
-                                <button type="button" className="btn-remove" onClick={() => handleRemoveAttachment('solution_attachments', index)}>Remove</button>
-                            </div>
-                        ))}
+                        {formData.solution_attachments.map((file, index) => {
+                            const displayName = file.name || file.originalName || file.fileName || `attachment-${index}`;
+                            return (
+                                <div key={index} className="attachment-item">
+                                    <span>{displayName}</span>
+                                    {file.isExisting && <span className="existing-badge">Existing</span>}
+                                    {file.publicUrl && (
+                                        <a href={file.publicUrl} target="_blank" rel="noopener noreferrer" className="btn-view">
+                                            View
+                                        </a>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className="btn-insert"
+                                        onClick={() => handleInsertPlaceholder(solutionTextareaRef, displayName)}
+                                    >
+                                        Insert
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn-remove"
+                                        onClick={() => handleRemoveAttachment('solution_attachments', index)}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 

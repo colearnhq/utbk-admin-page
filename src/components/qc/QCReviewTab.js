@@ -98,8 +98,8 @@ const QCReviewTab = ({ status, title }) => {
         <h2>{title}</h2>
         <p className="tab-description">
           {status === 'pending_review' && 'New questions from Data Entry team awaiting QC review'}
-          {status === 'revision_requested' && 'Questions marked for revision that need re-review'}
-          {status === 'under_review' && 'Questions currently being reviewed'}
+          {status === 'revision_requested' && 'Easy questions that were sent back to Question Maker but not yet revised'}
+          {status === 'under_review' && 'Questions that have been recreated by Data Entry and need re-review'}
           {status === 'approved' && 'Questions that have been approved by QC'}
         </p>
       </div>

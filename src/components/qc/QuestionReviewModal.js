@@ -110,11 +110,10 @@ const QuestionReviewModal = ({ question, onClose, onSubmit }) => {
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      
-      // Determine final status based on difficulty and decision
+
       let finalStatus = 'pending_review';
       let targetRole = null;
-      
+
       if (formData.difficulty === 'easy') {
         finalStatus = 'revision_requested';
         targetRole = 'question_maker';
@@ -123,9 +122,8 @@ const QuestionReviewModal = ({ question, onClose, onSubmit }) => {
           finalStatus = 'approved';
         } else if (decision === 'reject') {
           finalStatus = 'rejected';
-          
-          // Determine target role based on keywords
-          const hasDataEntryKeywords = formData.keywords.some(keyword => 
+
+          const hasDataEntryKeywords = formData.keywords.some(keyword =>
             ['Coding & Formatting Error', 'Visual/Graphical Errors'].includes(keyword)
           );
           targetRole = hasDataEntryKeywords ? 'data_entry' : 'question_maker';
@@ -156,7 +154,7 @@ const QuestionReviewModal = ({ question, onClose, onSubmit }) => {
   const renderStep1 = () => (
     <div className="qc-form-step">
       <h3>Basic Information</h3>
-      
+
       <div className="form-group">
         <label>QC Reviewer *</label>
         <select
@@ -218,7 +216,7 @@ const QuestionReviewModal = ({ question, onClose, onSubmit }) => {
     <div className="qc-form-step">
       <h3>QC Decision</h3>
       <p>This question is marked as <strong>hard</strong>. What is your decision?</p>
-      
+
       <div className="decision-buttons">
         <button
           className={`decision-btn accept ${decision === 'accept' ? 'active' : ''}`}
@@ -239,7 +237,7 @@ const QuestionReviewModal = ({ question, onClose, onSubmit }) => {
   const renderStep3 = () => (
     <div className="qc-form-step">
       <h3>Review Details</h3>
-      
+
       {formData.difficulty === 'easy' && (
         <div className="info-message">
           <p><strong>Note:</strong> Easy questions will be sent back to Question Maker for revision.</p>
@@ -391,7 +389,7 @@ const QuestionReviewModal = ({ question, onClose, onSubmit }) => {
               Previous
             </button>
           )}
-          
+
           {step < 3 ? (
             <button
               className="btn btn-primary"

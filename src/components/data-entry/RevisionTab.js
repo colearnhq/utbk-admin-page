@@ -3,6 +3,7 @@ import { getRevisionRequests, getRevisionAcceptances, updateRevisionRequest, upd
 import LoadingSpinner from '../common/LoadingSpinner';
 import QuestionForm from './QuestionForm';
 import QuestionPreview from './QuestionPreview';
+import PDFViewer from './PDFViewer';
 import { useAuth } from '../../hooks/useAuth';
 
 const RevisionTab = () => {
@@ -15,13 +16,189 @@ const RevisionTab = () => {
     const [showPreview, setShowPreview] = useState(false);
     const [previewData, setPreviewData] = useState(null);
     const [showAttachment, setShowAttachment] = useState(null);
+    const [pdfWidth, setPdfWidth] = useState(50);
+    const [isDragging, setIsDragging] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [picFilter, setPicFilter] = useState('all');
     const { userData } = useAuth();
 
     const currentUserId = userData.id;
 
+    const getFilteredRequests = () => {
+        let filtered = revisionRequests;
+
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter(request => request.status === statusFilter);
+        }
+
+        return filtered;
+    };
+
+    const getFilteredAcceptances = () => {
+        let filtered = revisionAcceptances;
+
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter(acceptance => acceptance.status === statusFilter);
+        }
+
+        if (picFilter !== 'all') {
+            filtered = filtered.filter(acceptance => {
+                const picName = acceptance.question?.created_by_user?.name;
+                return picName === picFilter;
+            });
+        }
+
+        return filtered;
+    };
+
+    const getAvailableStatuses = (data) => {
+        const statuses = [...new Set(data.map(item => item.status))];
+        return statuses.sort();
+    };
+
+    const getAvailablePICs = (data) => {
+        const pics = [...new Set(data.map(item => item.question.created_by_user.name))];
+        return pics.sort();
+    }
+
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        setStatusFilter('all');
+        setPicFilter('all');
+    };
+
+    const clearAllFilters = () => {
+        setStatusFilter('all');
+        setPicFilter('all');
+    };
+
+    const RequestFilterSection = ({ data, filteredData, onStatusFilterChange, currentStatusFilter }) => {
+        const availableStatuses = getAvailableStatuses(data);
+        const hasActiveFilters = currentStatusFilter !== 'all';
+
+        return (
+            <div className="filter-section">
+                <div className="filter-controls">
+                    <div className="filter-group">
+                        <label htmlFor="status-filter">Filter by Status:</label>
+                        <select
+                            id="status-filter"
+                            value={currentStatusFilter}
+                            onChange={(e) => onStatusFilterChange(e.target.value)}
+                            className="filter-select"
+                        >
+                            <option value="all">All Statuses</option>
+                            {availableStatuses.map(status => (
+                                <option key={status} value={status}>
+                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="filter-results">
+                    <span className="results-count">
+                        Showing {filteredData.length} of {data.length} questions
+                    </span>
+                    {hasActiveFilters && (
+                        <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => onStatusFilterChange('all')}
+                            style={{ marginLeft: '10px' }}
+                        >
+                            Clear Filter
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    // Komponen Filter untuk Acceptances (status + PIC)
+    const AcceptanceFilterSection = ({ data, filteredData, onStatusFilterChange, onPicFilterChange, currentStatusFilter, currentPicFilter }) => {
+        const availableStatuses = getAvailableStatuses(data);
+        const availablePICs = getAvailablePICs(data);
+        const hasActiveFilters = currentStatusFilter !== 'all' || currentPicFilter !== 'all';
+
+        return (
+            <div className="filter-section">
+                <div className="filter-controls">
+                    <div className="filter-group">
+                        <label htmlFor="status-filter">Filter by Status:</label>
+                        <select
+                            id="status-filter"
+                            value={currentStatusFilter}
+                            onChange={(e) => onStatusFilterChange(e.target.value)}
+                            className="filter-select"
+                        >
+                            <option value="all">All Statuses</option>
+                            {availableStatuses.map(status => (
+                                <option key={status} value={status}>
+                                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="filter-group">
+                        <label htmlFor="pic-filter">Filter by PIC:</label>
+                        <select
+                            id="pic-filter"
+                            value={currentPicFilter}
+                            onChange={(e) => onPicFilterChange(e.target.value)}
+                            className="filter-select"
+                        >
+                            <option value="all">All PICs</option>
+                            {availablePICs.map(pic => (
+                                <option key={pic} value={pic}>
+                                    {pic}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="filter-results">
+                    <span className="results-count">
+                        Showing {filteredData.length} of {data.length} questions
+                    </span>
+                    {hasActiveFilters && (
+                        <button
+                            className="btn btn-outline btn-sm"
+                            onClick={clearAllFilters}
+                            style={{ marginLeft: '10px' }}
+                        >
+                            Clear All Filters
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+
     useEffect(() => {
-        fetchRevisionData();
-    }, [activeTab]);
+        fetchAllRevisionData();
+    }, []);
+
+    const fetchAllRevisionData = async () => {
+        try {
+            setLoading(true);
+            const [requestsData, acceptancesData] = await Promise.all([
+                getRevisionsByUser(currentUserId, { revision_type: 'request' }),
+                getRevisionsByTargetRole('question_maker', { revision_type: 'acceptance' })
+            ]);
+
+            setRevisionRequests(requestsData);
+            setRevisionAcceptances(acceptancesData);
+        } catch (err) {
+            setError('Failed to fetch revision data');
+            console.error('Error fetching revision data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const fetchRevisionData = async () => {
         try {
@@ -41,6 +218,10 @@ const RevisionTab = () => {
         }
     };
 
+    const hasPendingAcceptances = () => {
+        return revisionAcceptances.some(acceptance => acceptance.status === 'pending');
+    };
+
     const handleEditItem = (item) => {
         setEditingItem(item);
     };
@@ -50,7 +231,6 @@ const RevisionTab = () => {
             if (activeTab === 'request') {
                 await updateRevisionRequest(editingItem.id, formData);
             } else {
-                // For acceptance, update the original question
                 const updateData = {
                     ...formData,
                     status: 'active',
@@ -73,6 +253,27 @@ const RevisionTab = () => {
     const handlePreview = (formData) => {
         setPreviewData(formData);
         setShowPreview(true);
+    };
+
+    const handleMouseDown = (e) => {
+        setIsDragging(true);
+        e.preventDefault();
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging) return;
+
+        const container = e.currentTarget.closest('.revision-edit');
+        const rect = container.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const newWidth = (x / rect.width) * 100;
+
+        const constrainedWidth = Math.max(20, Math.min(80, newWidth));
+        setPdfWidth(constrainedWidth);
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
     };
 
     const handleViewAttachment = (attachment) => {
@@ -130,13 +331,26 @@ const RevisionTab = () => {
         }
     };
 
+    const getRevisionStatusColor = (type) => {
+        switch (type) {
+            case 'approved': return 'blue';
+            case 'completed': return 'green';
+            case 'pending': return 'orange';
+            default: return 'gray';
+        }
+    };
+
     if (loading) return <LoadingSpinner message={`Loading revision ${activeTab}s...`} />;
     if (error) return <div className="error-message">{error}</div>;
 
-    // Edit mode for acceptance items
     if (editingItem && activeTab === 'acceptance') {
         return (
-            <div className="revision-edit">
+            <div
+                className="revision-edit"
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+            >
                 <div className="edit-header">
                     <button
                         className="btn btn-secondary"
@@ -150,29 +364,66 @@ const RevisionTab = () => {
                             <strong>Issue Notes:</strong> {editingItem.notes}
                         </div>
                     </div>
+                    <div className="creator-actions">
+                        <a
+                            href={JSON.parse(editingItem?.revision_attachment_urls)[0].url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-outline"
+                        >
+                            📥 Download PDF
+                        </a>
+                    </div>
                 </div>
 
-                <QuestionForm
-                    initialData={{
-                        exam: 'UTBK-SNBT',
-                        subject_id: editingItem.question.subject.id,
-                        chapter_id: editingItem.question.chapter.id,
-                        topic_id: editingItem.question.topic.id,
-                        concept_title_id: editingItem.question.concept_title.id,
-                        question_type: editingItem.question.question_type,
-                        question: editingItem.question.question,
-                        option_a: editingItem.question.option_a,
-                        option_b: editingItem.question.option_b,
-                        option_c: editingItem.question.option_c,
-                        option_d: editingItem.question.option_d,
-                        option_e: editingItem.question.option_e,
-                        correct_option: editingItem.question.correct_option,
-                        correct_answer: editingItem.question.correct_answer,
-                        solution: editingItem.question.solution
-                    }}
-                    onSubmit={handleUpdateItem}
-                    onPreview={handlePreview}
-                />
+                <div className="creator-content">
+                    <div
+                        className="pdf-section"
+                        style={{ width: `${pdfWidth}%` }}
+                    >
+                        <PDFViewer url={JSON.parse(editingItem?.revision_attachment_urls)[0].url} />
+                    </div>
+
+                    <div
+                        className="resize-handle"
+                        onMouseDown={handleMouseDown}
+                        style={{ cursor: isDragging ? 'ew-resize' : 'col-resize' }}
+                    >
+                        <div className="resize-line"></div>
+                    </div>
+
+                    <div
+                        className="form-section"
+                        style={{ width: `${100 - pdfWidth}%` }}
+                    >
+                        <div className="form-container">
+                            <h3>Edit Question</h3>
+                            <QuestionForm
+                                initialData={{
+                                    exam: 'UTBK-SNBT',
+                                    subject_id: editingItem.question.subject.id,
+                                    chapter_id: editingItem.question.chapter.id,
+                                    topic_id: editingItem.question.topic.id,
+                                    concept_title_id: editingItem.question.concept_title.id,
+                                    question_type: editingItem.question.question_type,
+                                    question: editingItem.question.question,
+                                    option_a: editingItem.question.option_a,
+                                    option_b: editingItem.question.option_b,
+                                    option_c: editingItem.question.option_c,
+                                    option_d: editingItem.question.option_d,
+                                    option_e: editingItem.question.option_e,
+                                    correct_option: editingItem.question.correct_option,
+                                    correct_answer: editingItem.question.correct_answer,
+                                    solution: editingItem.question.solution,
+                                    question_attachments: editingItem.question.question_attachments || [],
+                                    solution_attachments: editingItem.question.solution_attachments || []
+                                }}
+                                onSubmit={handleUpdateItem}
+                                onPreview={handlePreview}
+                            />
+                        </div>
+                    </div>
+                </div>
 
                 {showPreview && (
                     <QuestionPreview
@@ -191,15 +442,31 @@ const RevisionTab = () => {
                 <div className="tab-selector">
                     <button
                         className={`tab-button ${activeTab === 'request' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('request')}
+                        onClick={() => handleTabChange('request')}
                     >
                         Requests ({revisionRequests.length})
                     </button>
                     <button
                         className={`tab-button ${activeTab === 'acceptance' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('acceptance')}
+                        onClick={() => handleTabChange('acceptance')}
+                        style={{ position: 'relative' }}
                     >
                         Acceptances ({revisionAcceptances.length})
+                        {hasPendingAcceptances() && activeTab !== 'acceptance' && (
+                            <span
+                                className="pending-indicator"
+                                style={{
+                                    position: 'absolute',
+                                    top: '8px',
+                                    right: '8px',
+                                    width: '8px',
+                                    height: '8px',
+                                    backgroundColor: '#ff4444',
+                                    borderRadius: '50%',
+                                    border: '1px solid white'
+                                }}
+                            />
+                        )}
                     </button>
                 </div>
             </div>
@@ -210,13 +477,25 @@ const RevisionTab = () => {
                         <p>Monitor progress of revision requests submitted to other teams</p>
                     </div>
 
-                    {revisionRequests.length === 0 ? (
+                    <RequestFilterSection
+                        data={revisionRequests}
+                        filteredData={getFilteredRequests()}
+                        onStatusFilterChange={setStatusFilter}
+                        currentStatusFilter={statusFilter}
+                    />
+
+                    {getFilteredRequests().length === 0 ? (
                         <div className="empty-state">
-                            <p>No revision requests found.</p>
+                            <p>
+                                {statusFilter === 'all'
+                                    ? 'No revision requests found.'
+                                    : `No revision requests with status "${statusFilter}" found.`
+                                }
+                            </p>
                         </div>
                     ) : (
                         <div className="revision-list">
-                            {revisionRequests.map((request) => {
+                            {getFilteredRequests().map((request) => {
                                 const attachments = parseAttachmentUrls(request.revision_attachment_urls);
 
                                 return (
@@ -273,7 +552,6 @@ const RevisionTab = () => {
                                                 </div>
                                             )}
 
-                                            {/* Updated attachment handling */}
                                             {(request.evidence_file_url || attachments.length > 0) && (
                                                 <div className="attachment-section">
                                                     <h4>Evidence:</h4>
@@ -346,13 +624,27 @@ const RevisionTab = () => {
                         <p>Handle revision requests received from other teams</p>
                     </div>
 
-                    {revisionAcceptances.length === 0 ? (
+                    <AcceptanceFilterSection
+                        data={revisionAcceptances}
+                        filteredData={getFilteredAcceptances()}
+                        onStatusFilterChange={setStatusFilter}
+                        onPicFilterChange={setPicFilter}
+                        currentStatusFilter={statusFilter}
+                        currentPicFilter={picFilter}
+                    />
+
+                    {getFilteredAcceptances().length === 0 ? (
                         <div className="empty-state">
-                            <p>No revision acceptances found.</p>
+                            <p>
+                                {statusFilter === 'all' && picFilter === 'all'
+                                    ? 'No revision acceptances found.'
+                                    : `No revision acceptances with status "${statusFilter}" found.`
+                                }
+                            </p>
                         </div>
                     ) : (
                         <div className="revision-list">
-                            {revisionAcceptances.map((acceptance) => {
+                            {getFilteredAcceptances().map((acceptance) => {
                                 const attachments = parseAttachmentUrls(acceptance.revision_attachment_urls);
 
                                 return (
@@ -361,9 +653,19 @@ const RevisionTab = () => {
                                             <div className="acceptance-meta">
                                                 <span className="question-id">{acceptance.question.inhouse_id}</span>
                                                 <span
-                                                    className={`question-type ${getQuestionTypeColor(acceptance.question.question_type)}`}
+                                                    className={`question-type-on-data-entry ${getQuestionTypeColor(acceptance.question.question_type)}`}
                                                 >
                                                     {acceptance.question.question_type}
+                                                </span>
+                                                <span
+                                                    className={`revision-status-type-on-data-entry ${getRevisionStatusColor(acceptance.status)}`}
+                                                >
+                                                    {String(acceptance.status).toUpperCase()}
+                                                </span>
+                                                <span
+                                                    className={`pic-question`}
+                                                >
+                                                    {`question created by: ${acceptance.question?.created_by_user?.name}`}
                                                 </span>
                                             </div>
                                             <div className="acceptance-date">

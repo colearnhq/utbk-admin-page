@@ -12,13 +12,11 @@ const QuestionPreview = ({ data, onClose }) => {
 
         return parts.map((part, index) => {
             if (part.startsWith('$$') && part.endsWith('$$')) {
-                // Block math
                 const mathContent = part.slice(2, -2);
                 return (
                     <BlockMath key={index} math={mathContent} />
                 );
             } else if (part.startsWith('$') && part.endsWith('$')) {
-                // Inline math
                 const mathContent = part.slice(1, -1);
                 return (
                     <InlineMath key={index} math={mathContent} />
@@ -37,7 +35,7 @@ const QuestionPreview = ({ data, onClose }) => {
         let processedText = text;
         const attachmentElements = [];
 
-        JSON.parse(attachments).forEach((attachment, index) => {
+        attachments.forEach((attachment, index) => {
             const fileName = attachment.originalName || attachment.name || attachment.fileName;
             const placeholder = `[attachment:${fileName}]`;
 
@@ -45,10 +43,17 @@ const QuestionPreview = ({ data, onClose }) => {
                 const attachmentElement = (
                     <div key={`attachment-${index}`} className="inline-attachment">
                         <img
-                            src={attachment.publicUrl || (attachment instanceof File ? URL.createObjectURL(attachment) : '')}
+                            src={attachment.publicUrl || attachment.googleDriveUrl || (attachment instanceof File ? URL.createObjectURL(attachment) : '')}
                             alt={`Attachment ${fileName}`}
                             style={{ maxWidth: '100%', height: 'auto', margin: '10px 0' }}
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'block';
+                            }}
                         />
+                        <div style={{ display: 'none', padding: '10px', backgroundColor: '#f5f5f5', border: '1px dashed #ccc', textAlign: 'center' }}>
+                            Image failed to load: {fileName}
+                        </div>
                     </div>
                 );
                 processedText = processedText.replace(placeholder, `__ATTACHMENT_${index}__`);
@@ -75,10 +80,19 @@ const QuestionPreview = ({ data, onClose }) => {
     };
 
 
-
     const renderQuestion = () => {
-        const attachments = data.question_attachments || [];
-        const unusedAttachments = JSON.parse(attachments).filter(attachment => {
+        const attachments = (() => {
+            try {
+                if (Array.isArray(data.question_attachments)) {
+                    return data.question_attachments;
+                }
+                return data.question_attachments ? JSON.parse(data.question_attachments) : [];
+            } catch {
+                return [];
+            }
+        })();
+
+        const unusedAttachments = attachments.filter(attachment => {
             const fileName = attachment.originalName || attachment.name || attachment.fileName;
             return !data.question.includes(`[attachment:${fileName}]`);
         });
@@ -96,10 +110,17 @@ const QuestionPreview = ({ data, onClose }) => {
                         {unusedAttachments.map((attachment, index) => (
                             <div key={index} className="attachment-item">
                                 <img
-                                    src={attachment.publicUrl || (attachment instanceof File ? URL.createObjectURL(attachment) : '')}
+                                    src={attachment.publicUrl || attachment.googleDriveUrl || (attachment instanceof File ? URL.createObjectURL(attachment) : '')}
                                     alt={`Question attachment ${index + 1}`}
                                     style={{ maxWidth: '100%', height: 'auto', margin: '5px 0' }}
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'block';
+                                    }}
                                 />
+                                <div style={{ display: 'none', padding: '10px', backgroundColor: '#f5f5f5', border: '1px dashed #ccc', textAlign: 'center' }}>
+                                    Image failed to load: {attachment.originalName || attachment.name || attachment.fileName}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -155,8 +176,18 @@ const QuestionPreview = ({ data, onClose }) => {
     const renderSolution = () => {
         if (!showSolution) return null;
 
-        const attachments = data.solution_attachments || [];
-        const unusedAttachments = JSON.parse(attachments).filter(attachment => {
+        const attachments = (() => {
+            try {
+                if (Array.isArray(data.solution_attachments)) {
+                    return data.solution_attachments;
+                }
+                return data.solution_attachments ? JSON.parse(data.solution_attachments) : [];
+            } catch {
+                return [];
+            }
+        })();
+
+        const unusedAttachments = attachments.filter(attachment => {
             const fileName = attachment.originalName || attachment.name || attachment.fileName;
             return !data.solution.includes(`[attachment:${fileName}]`);
         });
@@ -174,10 +205,17 @@ const QuestionPreview = ({ data, onClose }) => {
                         {unusedAttachments.map((attachment, index) => (
                             <div key={index} className="attachment-item">
                                 <img
-                                    src={attachment.publicUrl || (attachment instanceof File ? URL.createObjectURL(attachment) : '')}
+                                    src={attachment.publicUrl || attachment.googleDriveUrl || (attachment instanceof File ? URL.createObjectURL(attachment) : '')}
                                     alt={`Solution attachment ${index + 1}`}
                                     style={{ maxWidth: '100%', height: 'auto', margin: '5px 0' }}
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'block';
+                                    }}
                                 />
+                                <div style={{ display: 'none', padding: '10px', backgroundColor: '#f5f5f5', border: '1px dashed #ccc', textAlign: 'center' }}>
+                                    Image failed to load: {attachment.originalName || attachment.name || attachment.fileName}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -202,10 +240,10 @@ const QuestionPreview = ({ data, onClose }) => {
                 <div className="modal-content">
                     <div className="question-meta">
                         <div className="meta-item">
-                            <strong>Exam:</strong> {data.exam}
+                            <strong>Exam:</strong> {data?.exam || data?.question?.exam}
                         </div>
                         <div className="meta-item">
-                            <strong>Subject:</strong> {data.subject_name || 'Loading...'}
+                            <strong>Subject:</strong> {data?.subject_name || data.subject?.name || 'Loading...'}
                         </div>
                         <div className="meta-item">
                             <strong>Type:</strong> {data.question_type}

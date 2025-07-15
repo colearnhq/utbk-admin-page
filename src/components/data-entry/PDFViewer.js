@@ -26,9 +26,9 @@ const PDFViewer = ({ url }) => {
                 <div className="error-content">
                     <h4>PDF Preview Not Available</h4>
                     <p>Unable to display PDF in browser. Please download the file to view it.</p>
-                    <a 
-                        href={url} 
-                        target="_blank" 
+                    <a
+                        href={url}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="btn btn-primary"
                     >
@@ -43,7 +43,7 @@ const PDFViewer = ({ url }) => {
         <div className="pdf-viewer">
             <div className="pdf-controls">
                 <div className="zoom-controls">
-                    <button 
+                    <button
                         className="btn btn-sm"
                         onClick={handleZoomOut}
                         disabled={zoom <= 50}
@@ -51,23 +51,23 @@ const PDFViewer = ({ url }) => {
                         −
                     </button>
                     <span className="zoom-level">{zoom}%</span>
-                    <button 
+                    <button
                         className="btn btn-sm"
                         onClick={handleZoomIn}
                         disabled={zoom >= 200}
                     >
                         +
                     </button>
-                    <button 
+                    <button
                         className="btn btn-sm"
                         onClick={handleZoomReset}
                     >
                         Reset
                     </button>
                 </div>
-                <a 
-                    href={url} 
-                    target="_blank" 
+                <a
+                    href={url}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-sm btn-outline"
                 >

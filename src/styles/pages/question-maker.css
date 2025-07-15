@@ -656,3 +656,127 @@
     color: #6b7280;
     font-size: 0.75rem;
 }
+
+/* New column styles for revision table */
+.question-preview-cell {
+    max-width: 200px;
+}
+
+.question-preview {
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.question-preview span {
+    cursor: help;
+}
+
+.keywords-cell {
+    max-width: 150px;
+}
+
+.keywords-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.keyword-tag {
+    background: #e0e7ff;
+    color: #3730a3;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.125rem 0.5rem;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+.evidence-cell {
+    max-width: 120px;
+}
+
+.evidence-attachments {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.evidence-link {
+    display: inline-block;
+    color: #059669;
+    text-decoration: none;
+    font-size: 0.75rem;
+    padding: 0.125rem 0.375rem;
+    background: #ecfdf5;
+    border-radius: 4px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+}
+
+.evidence-link:hover {
+    background: #d1fae5;
+    text-decoration: underline;
+}
+
+.null-value {
+    color: #9ca3af;
+    font-style: italic;
+    font-size: 0.875rem;
+}
+
+.btn-preview {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.375rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-preview:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+.btn-preview:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* Responsive table adjustments */
+@media (max-width: 1200px) {
+    .revision-table {
+        font-size: 0.875rem;
+    }
+    
+    .question-preview-cell {
+        max-width: 150px;
+    }
+    
+    .keywords-cell {
+        max-width: 100px;
+    }
+    
+    .evidence-cell {
+        max-width: 80px;
+    }
+}
+
+@media (max-width: 992px) {
+    .revision-table {
+        font-size: 0.8rem;
+    }
+    
+    .revision-table th,
+    .revision-table td {
+        padding: 0.5rem;
+    }
+}

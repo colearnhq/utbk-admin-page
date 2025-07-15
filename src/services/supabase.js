@@ -880,6 +880,24 @@ export const getRevisions = async (filters = {}) => {
             .select(`
                 *,
                 package:question_packages(id, title, subject),
+                question:questions(
+                    id,
+                    inhouse_id,
+                    question_type,
+                    question,
+                    option_a,
+                    option_b,
+                    option_c,
+                    option_d,
+                    option_e,
+                    correct_option,
+                    correct_answer,
+                    solution,
+                    subject:subjects(id, name),
+                    chapter:chapters(id, name),
+                    topic:topics(id, name),
+                    concept_title:concept_titles(id, name)
+                ),
                 requested_by_user:users!revision_requests_requested_by_fkey(id, name),
                 responded_by_user:users!revision_requests_responded_by_fkey(id, name)
             `)
@@ -976,8 +994,6 @@ export const getRevisionRequests = async () => {
                 target_role,
                 notes,
                 evidence_file_url,
-                attachment_type,
-                attachment_name,
                 status,
                 response_notes,
                 responded_by,
@@ -988,6 +1004,7 @@ export const getRevisionRequests = async () => {
                 remarks,
                 keywords,
                 revision_type,
+                revision_attachment_urls,
                 question:questions(
                     id,
                     inhouse_id,
@@ -1033,8 +1050,6 @@ export const getRevisionAcceptances = async () => {
                 target_role,
                 notes,
                 evidence_file_url,
-                attachment_type,
-                attachment_name,
                 status,
                 response_notes,
                 responded_by,
@@ -1045,6 +1060,7 @@ export const getRevisionAcceptances = async () => {
                 remarks,
                 keywords,
                 revision_type,
+                revision_attachment_urls,
                 question:questions(
                     id,
                     inhouse_id,
@@ -1103,21 +1119,18 @@ export const updateRevisionRequest = async (id, updateData) => {
     }
 };
 
-// Update revision acceptance (update question and mark revision as completed)
 export const updateRevisionAcceptance = async (revisionId, questionData) => {
     try {
-        // Start a transaction-like operation
-        // First, get the revision to get the question_id
         const { data: revision, error: revisionError } = await supabase
             .from('revisions')
             .select('question_id')
             .eq('id', revisionId)
-            .eq('revision_type', 'acceptance')
+            .in('revision_type', ['acceptance', 'recreation'])
             .single();
 
         if (revisionError) throw revisionError;
 
-        // Update the question
+
         const { data: updatedQuestion, error: questionError } = await supabase
             .from('questions')
             .update({
@@ -1135,12 +1148,16 @@ export const updateRevisionAcceptance = async (revisionId, questionData) => {
                 chapter_id: questionData.chapter_id,
                 topic_id: questionData.topic_id,
                 concept_title_id: questionData.concept_title_id,
-                status: 'active', // Reactivate the question
-                updated_at: new Date().toISOString()
+                status: 'active',
+                qc_status: 'under_review',
+                question_attachments: questionData.question_attachments || [],
+                solution_attachments: questionData.solution_attachments || [],
+                updated_at: getJakartaISOString()
             })
             .eq('id', revision.question_id)
             .select();
 
+        console.log(`cek data question: ${JSON.stringify(updatedQuestion)}`)
         if (questionError) throw questionError;
 
         const { data: updatedRevision, error: revisionUpdateError } = await supabase
@@ -1148,18 +1165,30 @@ export const updateRevisionAcceptance = async (revisionId, questionData) => {
             .update({
                 status: 'completed',
                 response_notes: 'Question has been updated and reactivated',
-                responded_by: questionData.responded_by || null, // Should be current user ID
-                responded_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                responded_by: questionData.responded_by || null,
+                responded_at: getJakartaISOString(),
+                updated_at: getJakartaISOString()
             })
             .eq('id', revisionId)
             .select();
 
         if (revisionUpdateError) throw revisionUpdateError;
 
+        const { data: updatedQCReview, error: qcReviewError } = await supabase
+            .from('qc_reviews')
+            .update({
+                status: 'under_review',
+                updated_at: getJakartaISOString()
+            })
+            .eq('question_id', revision.question_id)
+            .select();
+
+        if (qcReviewError) throw qcReviewError;
+
         return {
             question: updatedQuestion[0],
-            revision: updatedRevision[0]
+            revision: updatedRevision[0],
+            qc_review: updatedQCReview[0]
         };
     } catch (error) {
         console.error('Error updating revision acceptance:', error);
@@ -1205,8 +1234,6 @@ export const createRevisionAcceptance = async (acceptanceData) => {
                 target_role: 'question_maker', // Since this is acceptance, target is question_maker
                 notes: acceptanceData.rejection_notes,
                 evidence_file_url: acceptanceData.evidence_file_url,
-                attachment_type: acceptanceData.attachment_type,
-                attachment_name: acceptanceData.attachment_name,
                 keywords: acceptanceData.keywords,
                 revision_type: 'acceptance',
                 requested_by: acceptanceData.reported_by,
@@ -1234,8 +1261,6 @@ export const getRevisionById = async (id) => {
                 target_role,
                 notes,
                 evidence_file_url,
-                attachment_type,
-                attachment_name,
                 status,
                 response_notes,
                 responded_by,
@@ -1246,6 +1271,7 @@ export const getRevisionById = async (id) => {
                 remarks,
                 keywords,
                 revision_type,
+                revision_attachment_urls,
                 question:questions(
                     id,
                     inhouse_id,
@@ -1264,7 +1290,7 @@ export const getRevisionById = async (id) => {
                     topic:topics(id, name),
                     concept_title:concept_titles(id, name)
                 ),
-                package:question_packages(id, name),
+                package:question_packages(id, title),
                 requested_by_user:users!revision_requests_requested_by_fkey(id, name, email),
                 responded_by_user:users!revision_requests_responded_by_fkey(id, name, email)
             `)
@@ -1349,6 +1375,7 @@ export const getRevisionsByUser = async (userId, filters = {}) => {
                 question:questions(
                     id,
                     inhouse_id,
+                    exam,
                     question_type,
                     question,
                     option_a,
@@ -1368,7 +1395,6 @@ export const getRevisionsByUser = async (userId, filters = {}) => {
                 requested_by_user:users!revision_requests_requested_by_fkey(id, name, email),
                 responded_by_user:users!revision_requests_responded_by_fkey(id, name, email)
             `)
-            .eq('requested_by', userId)
             .order('created_at', { ascending: false });
 
         if (filters.status) {
@@ -1399,8 +1425,6 @@ export const getRevisionsByTargetRole = async (targetRole, filters = {}) => {
                 target_role,
                 notes,
                 evidence_file_url,
-                attachment_type,
-                attachment_name,
                 status,
                 response_notes,
                 responded_by,
@@ -1411,6 +1435,7 @@ export const getRevisionsByTargetRole = async (targetRole, filters = {}) => {
                 remarks,
                 keywords,
                 revision_type,
+                revision_attachment_urls,
                 question:questions(
                     id,
                     inhouse_id,
@@ -1424,10 +1449,13 @@ export const getRevisionsByTargetRole = async (targetRole, filters = {}) => {
                     correct_option,
                     correct_answer,
                     solution,
+                    question_attachments,
+                    solution_attachments,
                     subject:subjects(id, name),
                     chapter:chapters(id, name),
                     topic:topics(id, name),
-                    concept_title:concept_titles(id, name)
+                    concept_title:concept_titles(id, name),
+                    created_by_user:users!questions_created_by_fkey(id, name, email)
                 ),
                 package:question_packages(id, title),
                 requested_by_user:users!revision_requests_requested_by_fkey(id, name, email),
@@ -1620,7 +1648,8 @@ export const getQCStatistics = async () => {
             underReview: data.filter(q => q.qc_status === 'under_review').length,
             approved: data.filter(q => q.qc_status === 'approved').length,
             rejected: data.filter(q => q.qc_status === 'rejected').length,
-            revisionRequested: data.filter(q => q.qc_status === 'revision_requested').length
+            revisionRequested: data.filter(q => q.qc_status === 'revision_requested').length,
+            recreateQuestion: data.filter(q => q.qc_status === 'recreate_question').length
         };
 
         return stats;
@@ -1643,8 +1672,13 @@ export const getQuestionsForQC = async (status, filters = {}) => {
                 creator_name:users!questions_created_by_fkey(name),
                 qc_reviewer_name:users!questions_qc_reviewer_id_fkey(name)
             `)
-            .eq('qc_status', status)
             .order('created_at', { ascending: false });
+
+        if (Array.isArray(status)) {
+            query = query.in('qc_status', status);
+        } else {
+            query = query.eq('qc_status', status);
+        }
 
         if (filters.subject) {
             query = query.eq('subject_id', filters.subject);
@@ -1660,7 +1694,6 @@ export const getQuestionsForQC = async (status, filters = {}) => {
 
         if (error) throw error;
 
-        // Flatten the nested objects for easier access
         return data.map(question => ({
             ...question,
             subject_name: question.subject_name?.name || 'Unknown',
@@ -1676,11 +1709,41 @@ export const getQuestionsForQC = async (status, filters = {}) => {
     }
 };
 
+export const getQuestionsForRecreation = async (userId = null) => {
+    try {
+        let query = supabase
+            .from('revisions')
+            .select(`
+                *,
+                question:questions(
+                    *,
+                    subject:subjects(id, name),
+                    chapter:chapters(id, name),
+                    topic:topics(id, name),
+                    concept_title:concept_titles(id, name)
+                ),
+                package:question_packages(id, title),
+                requested_by_user:users!revision_requests_requested_by_fkey(id, name, email)
+            `)
+            .eq('revision_type', 'recreation')
+            .eq('status', 'pending')
+            .eq('remarks', 'RECREATE_QUESTION')
+            .order('created_at', { ascending: false });
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Error fetching questions for recreation:', error);
+        throw error;
+    }
+};
+
 export const submitQCReview = async (reviewData) => {
     try {
         const { questionId, reviewerId, difficulty, status, reviewNotes, rejectionNotes, keywords, evidenceFiles, targetRole } = reviewData;
 
-        // Upload evidence files if any
         let evidenceUrls = [];
         if (evidenceFiles && evidenceFiles.length > 0) {
             for (const file of evidenceFiles) {
@@ -1704,7 +1767,9 @@ export const submitQCReview = async (reviewData) => {
             review_notes: reviewNotes,
             rejection_notes: rejectionNotes,
             keywords: keywords,
-            evidence_attachment_urls: evidenceUrls
+            evidence_attachment_urls: evidenceUrls,
+            created_at: getJakartaISOString(),
+            updated_at: getJakartaISOString()
         };
 
         const { data: qcReview, error: qcError } = await supabase
@@ -1714,14 +1779,21 @@ export const submitQCReview = async (reviewData) => {
 
         if (qcError) throw qcError;
 
-        // 2. Update question with QC status
+        // 2. Update question with QC status and revision info for easy questions
         const questionUpdateData = {
             qc_status: status,
             qc_reviewer_id: reviewerId,
-            qc_reviewed_at: new Date().toISOString(),
+            qc_reviewed_at: getJakartaISOString(),
             qc_difficulty_level: difficulty,
-            updated_at: new Date().toISOString()
+            updated_at: getJakartaISOString()
         };
+
+        // For easy questions (revision_requested), add revision tracking info
+        // if (difficulty === 'easy' && status === 'revision_requested') {
+        //     questionUpdateData.revision_notes = rejectionNotes || reviewNotes;
+        //     questionUpdateData.revised_by = reviewerId;
+        //     questionUpdateData.revised_at = getJakartaISOString();
+        // }
 
         const { data: updatedQuestion, error: questionError } = await supabase
             .from('questions')
@@ -1733,17 +1805,37 @@ export const submitQCReview = async (reviewData) => {
 
         // 3. Create revision record if needed
         if (status === 'revision_requested' || status === 'rejected') {
+            let revisionTargetRole = targetRole;
+            let revisionStatus = 'pending';
+
+            // For easy questions, send to question_maker with pending status
+            if (difficulty === 'easy') {
+                revisionTargetRole = 'question_maker';
+                revisionStatus = 'pending';
+            }
+            // For hard questions rejected with specific keywords, send to data_entry
+            else if (status === 'rejected' && keywords && keywords.some(k =>
+                ['Coding & Formatting Error', 'Visual/Graphical Errors'].includes(k)
+            )) {
+                revisionTargetRole = 'data_entry';
+            }
+            // Other hard rejected questions go to question_maker
+            else if (status === 'rejected') {
+                revisionTargetRole = 'question_maker';
+            }
+
             const revisionData = {
                 question_id: questionId,
                 package_id: updatedQuestion[0].package_id,
-                target_role: targetRole,
+                target_role: revisionTargetRole,
                 notes: rejectionNotes || reviewNotes,
                 keywords: keywords,
                 evidence_file_url: evidenceUrls.length > 0 ? evidenceUrls[0].url : null,
                 revision_attachment_urls: JSON.stringify(evidenceUrls),
                 requested_by: reviewerId,
-                status: 'pending',
-                revision_type: 'request'
+                status: revisionStatus,
+                revision_type: 'acceptance',
+                remarks: difficulty === 'easy' ? 'EASY_QUESTION_REVISION' : null
             };
 
             const { error: revisionError } = await supabase
@@ -1759,6 +1851,142 @@ export const submitQCReview = async (reviewData) => {
         };
     } catch (error) {
         console.error('Error submitting QC review:', error);
+        throw error;
+    }
+};
+
+// New function to handle Question Maker approve action for easy questions
+export const approveQuestionMakerRevision = async (revisionId, responseNotes, responseFiles, respondedBy) => {
+    try {
+        // First get the revision details
+        const { data: revision, error: getRevisionError } = await supabase
+            .from('revisions')
+            .select('*')
+            .eq('id', revisionId)
+            .single();
+
+        if (getRevisionError) throw getRevisionError;
+
+        // Update revision status to approved
+        const { data: updatedRevision, error: revisionError } = await supabase
+            .from('revisions')
+            .update({
+                status: 'send to data-entry',
+                response_notes: responseNotes,
+                responded_by: respondedBy,
+                responded_at: getJakartaISOString(),
+                revision_attachment_urls: JSON.stringify(responseFiles || [])
+            })
+            .eq('id', revisionId)
+            .select();
+
+        if (revisionError) throw revisionError;
+
+        // Create acceptance record for Data Entry
+        const acceptanceData = {
+            question_id: revision.question_id,
+            package_id: revision.package_id,
+            target_role: 'data_entry',
+            notes: `Rejected by QC due to: ${revision.notes}\nQuestion Maker has uploaded fixed question: ${responseNotes}`,
+            keywords: revision.keywords,
+            evidence_file_url: responseFiles?.length > 0 ? responseFiles[0].url : null,
+            revision_attachment_urls: JSON.stringify(responseFiles || []),
+            requested_by: respondedBy,
+            status: 'pending',
+            revision_type: 'recreation',
+            remarks: 'RECREATE_QUESTION'
+        };
+
+        const { data: acceptance, error: acceptanceError } = await supabase
+            .from('revisions')
+            .insert([acceptanceData])
+            .select();
+
+        if (acceptanceError) throw acceptanceError;
+
+        // Update question status to recreate_question
+        const { data: updatedQuestion, error: questionError } = await supabase
+            .from('questions')
+            .update({
+                qc_status: 'recreate_question',
+                updated_at: getJakartaISOString(),
+                revision_notes: responseNotes,
+                revised_by: respondedBy,
+                revised_at: getJakartaISOString()
+            })
+            .eq('id', revision.question_id)
+            .select();
+
+        if (questionError) throw questionError;
+
+        return {
+            revision: updatedRevision[0],
+            acceptance: acceptance[0],
+            question: updatedQuestion[0]
+        };
+    } catch (error) {
+        console.error('Error approving Question Maker revision:', error);
+        throw error;
+    }
+};
+
+// Function to handle Data Entry recreate question submission
+export const submitRecreatedQuestion = async (questionId, questionData, submittedBy) => {
+    try {
+        // Update the existing question without creating new ID
+        const updateData = {
+            question_type: questionData.question_type,
+            question: questionData.question,
+            question_attachments: questionData.question_attachments,
+            option_a: questionData.option_a,
+            option_b: questionData.option_b,
+            option_c: questionData.option_c,
+            option_d: questionData.option_d,
+            option_e: questionData.option_e,
+            correct_option: questionData.correct_option,
+            correct_answer: questionData.correct_answer,
+            solution: questionData.solution,
+            solution_attachments: questionData.solution_attachments,
+            qc_status: 'under_review',
+            updated_at: getJakartaISOString()
+        };
+
+        const { data: updatedQuestion, error: questionError } = await supabase
+            .from('questions')
+            .update(updateData)
+            .eq('id', questionId)
+            .select();
+
+        if (questionError) throw questionError;
+
+        // Update QC review status to under_review
+        const { error: qcReviewError } = await supabase
+            .from('qc_reviews')
+            .update({
+                status: 'under_review',
+                updated_at: getJakartaISOString()
+            })
+            .eq('question_id', questionId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (qcReviewError) throw qcReviewError;
+
+        // Update revision status to completed  
+        const { error: revisionError } = await supabase
+            .from('revisions')
+            .update({
+                status: 'completed',
+                updated_at: getJakartaISOString()
+            })
+            .eq('question_id', questionId)
+            .eq('remarks', 'RECREATE_QUESTION');
+
+        if (revisionError) throw revisionError;
+
+        return updatedQuestion[0];
+    } catch (error) {
+        console.error('Error submitting recreated question:', error);
         throw error;
     }
 };

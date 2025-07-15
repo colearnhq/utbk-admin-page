@@ -29,24 +29,24 @@ const AdminDashboard = () => {
                     <p>Review and manage question submissions from users.</p>
                 </Link>
 
-                <Link to="/metadata" className="dashboard-card">
-                    <h3>Metadata Management</h3>
-                    <p>Manage subjects, chapters, topics, and concepts.</p>
-                </Link>
-
                 <Link to="/data-entry" className="dashboard-card">
                     <h3>Data Entry</h3>
                     <p>Enter new questions and manage question packages.</p>
                 </Link>
 
-                <Link to="/admin/users" className="dashboard-card">
-                    <h3>User Management</h3>
-                    <p>Register new users and manage user roles and vendors.</p>
-                </Link>
-
                 <Link to="/qc" className="dashboard-card">
                     <h3>QC Data</h3>
                     <p>Quality control and data validation tools.</p>
+                </Link>
+
+                <Link to="/metadata" className="dashboard-card">
+                    <h3>Metadata Management</h3>
+                    <p>Manage subjects, chapters, topics, and concepts.</p>
+                </Link>
+
+                <Link to="/admin/users" className="dashboard-card">
+                    <h3>User Management</h3>
+                    <p>Register new users and manage user roles and vendors.</p>
                 </Link>
             </div>
         </div>

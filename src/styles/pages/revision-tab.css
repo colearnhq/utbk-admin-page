@@ -142,6 +142,14 @@
     background: #6b7280;
 }
 
+.revision-status-type-on-data-entry {
+    padding: 0.25rem 1rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: white;
+}
+
 .question-type-on-data-entry {
     padding: 0.25rem 0.75rem;
     border-radius: 12px;
@@ -150,19 +158,32 @@
     color: white;
 }
 
-.question-type-on-data-entry.blue {
+.pic-question {
+    padding: 0.25rem 1rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: white;
+    background: #6b7280;
+}
+
+.question-type-on-data-entry.blue,
+.revision-status-type-on-data-entry.blue {
     background: #3b82f6;
 }
 
-.question-type-on-data-entry.green {
+.question-type-on-data-entry.green,
+.revision-status-type-on-data-entry.green {
     background: #10b981;
 }
 
-.question-type-on-data-entry.orange {
+.question-type-on-data-entry.orange,
+.revision-status-type-on-data-entry.orange {
     background: #f59e0b;
 }
 
-.question-type-on-data-entry.gray {
+.question-type-on-data-entry.gray,
+.revision-status-type-on-data-entry.gray {
     background: #6b7280;
 }
 
@@ -222,6 +243,12 @@
     color: #4b5563;
     line-height: 1.5;
     margin: 0;
+}
+
+.request-description {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
 }
 
 .request-response small {
@@ -431,7 +458,57 @@
     text-decoration: underline;
 }
 
-/* Responsive Design */
+.filter-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.filter-group label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.filter-select {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+    min-width: 250px;
+}
+
+.filter-results {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.results-count {
+    font-size: 14px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+
 @media (max-width: 768px) {
     .revision-header {
         padding: 1.5rem 1rem;
@@ -493,5 +570,15 @@
 
     .attachment-viewer {
         padding: 1rem;
+    }
+
+    .filter-section {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+
+    .filter-results {
+        justify-content: center;
     }
 }
