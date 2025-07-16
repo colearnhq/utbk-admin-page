@@ -756,15 +756,15 @@
     .revision-table {
         font-size: 0.875rem;
     }
-    
+
     .question-preview-cell {
         max-width: 150px;
     }
-    
+
     .keywords-cell {
         max-width: 100px;
     }
-    
+
     .evidence-cell {
         max-width: 80px;
     }
@@ -774,9 +774,208 @@
     .revision-table {
         font-size: 0.8rem;
     }
-    
+
     .revision-table th,
     .revision-table td {
         padding: 0.5rem;
     }
+}
+
+/* Filters Section Styles */
+.filters-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: end;
+}
+
+.search-group {
+    flex: 1;
+    min-width: 250px;
+}
+
+.search-group label {
+    display: block;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    transition: border-color 0.2s;
+    background: white;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.search-input::placeholder {
+    color: #9ca3af;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 180px;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.filter-select {
+    padding: 0.625rem 0.75rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.sort-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: end;
+}
+
+.sort-btn {
+    padding: 0.625rem 1rem;
+    background: #f1f5f9;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.sort-btn:hover {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+.sort-btn:active {
+    transform: translateY(1px);
+}
+
+/* Responsive Design untuk Filters */
+@media (max-width: 1024px) {
+    .filters-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-group {
+        min-width: 100%;
+        flex: none;
+    }
+
+    .filter-group {
+        min-width: 100%;
+        flex: none;
+    }
+
+    .sort-group {
+        justify-content: stretch;
+    }
+
+    .sort-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .filters-section {
+        padding: 1rem;
+        gap: 0.75rem;
+    }
+
+    .search-input,
+    .filter-select,
+    .sort-btn {
+        padding: 0.75rem;
+        font-size: 1rem;
+    }
+}
+
+/* Packages Grid Styles (jika belum ada) */
+.packages-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.package-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.package-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.packages-header {
+    margin-bottom: 2rem;
+}
+
+.packages-header h2 {
+    color: #1e293b;
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+}
+
+.packages-header p {
+    color: #64748b;
+    margin: 0;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #64748b;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state p {
+    font-size: 1rem;
+    margin: 0;
 }

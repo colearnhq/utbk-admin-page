@@ -490,12 +490,20 @@
     transform: translateY(-2px);
 }
 
-.stat-card.success {
-    border-left: 4px solid #10b981;
+.stat-card.on_review {
+    border-left: 4px solid #c4d600;
 }
 
 .stat-card.revised {
     border-left: 4px solid #f59e0b;
+}
+
+.stat-card.edited {
+    border-left: 4px solid #0050db;
+}
+
+.stat-card.qc_passed {
+    border-left: 4px solid #10b981;
 }
 
 .stat-number {
@@ -631,6 +639,14 @@
 
 .question-status.gray {
     background: #6b7280;
+}
+
+.question-status.yellow {
+    background: #c4d600;
+}
+
+.question-status.blue {
+    background: #0050db;
 }
 
 .question-date {

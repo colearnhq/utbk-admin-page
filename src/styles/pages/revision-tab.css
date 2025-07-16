@@ -508,6 +508,41 @@
     font-weight: 500;
 }
 
+.question-editor-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.question-editor-content {
+    background: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 1200px;
+    height: 90%;
+    max-height: 800px;
+    overflow-y: auto;
+    position: relative;
+}
+
+.question-editor {
+    padding: 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-container {
+    flex: 1;
+    overflow-y: auto;
+}
 
 @media (max-width: 768px) {
     .revision-header {

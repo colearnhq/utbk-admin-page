@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { getQuestions, getSubjects } from '../../services/supabase';
+import { getQuestions, getSubjects, updateQuestion } from '../../services/supabase';
 import LoadingSpinner from '../common/LoadingSpinner';
 import QuestionPreview from './QuestionPreview';
+import QuestionEditor from './QuestionEditor';
+import useQuestionEditor from '../../hooks/useQuestionEditor';
+import { useAuth } from '../../hooks/useAuth';
 import '../../styles/pages/revision-tab.css';
-import { UNSAFE_createClientRoutesWithHMRRevalidationOptOut } from 'react-router-dom';
 
 const QuestionsTab = () => {
     const [questions, setQuestions] = useState([]);
@@ -13,8 +15,10 @@ const QuestionsTab = () => {
     const [previewData, setPreviewData] = useState(null);
     const [stats, setStats] = useState({
         total: 0,
-        success: 0,
-        revised: 0
+        on_review: 0,
+        revised: 0,
+        edited: 0,
+        qc_passed: 0
     });
     const [filters, setFilters] = useState({
         status: 'all',
@@ -30,6 +34,9 @@ const QuestionsTab = () => {
         totalItems: 0,
         totalPages: 0
     });
+    const [showEditor, setShowEditor] = useState(false);
+    const [editingQuestion, setEditingQuestion] = useState(null);
+    const { userData } = useAuth();
 
     useEffect(() => {
         fetchInitialData();
@@ -38,6 +45,32 @@ const QuestionsTab = () => {
     useEffect(() => {
         fetchQuestions();
     }, [filters, pagination.currentPage, pagination.itemsPerPage]);
+
+    useEffect(() => {
+        const handleEscKey = (e) => {
+            if (e.key === 'Escape' && showEditor) {
+                handleCancelEdit();
+            }
+        };
+
+        if (showEditor) {
+            document.addEventListener('keydown', handleEscKey);
+            document.body.style.overflow = 'hidden';
+        }
+
+        return () => {
+            document.removeEventListener('keydown', handleEscKey);
+            document.body.style.overflow = 'unset';
+        };
+    }, [showEditor]);
+
+    const getJakartaISOString = () => {
+        const now = new Date();
+        const jakartaOffset = 7 * 60;
+        const jakartaTime = new Date(now.getTime() + (jakartaOffset * 60 * 1000));
+
+        return jakartaTime.toISOString().replace(/Z$/, '+07:00');
+    };
 
     const fetchInitialData = async () => {
         try {
@@ -53,7 +86,7 @@ const QuestionsTab = () => {
             setLoading(true);
 
             const allQuestionsData = await getQuestions({
-                ...(filters.status !== 'all' && { status: filters.status === 'success' ? 'active' : filters.status }),
+                ...(filters.status !== 'all' && { status: filters.status === 'on_review' ? 'active' : filters.status }),
                 ...(filters.subject !== 'all' && { subject_id: filters.subject }),
                 ...(filters.questionType !== 'all' && { question_type: filters.questionType })
             });
@@ -67,8 +100,10 @@ const QuestionsTab = () => {
             setQuestions(filteredQuestions);
 
             const totalQuestions = filteredQuestions.length;
-            const successCount = filteredQuestions.filter(q => q.status === 'active').length;
+            const onReviewCount = filteredQuestions.filter(q => q.status === 'active').length;
             const revisedCount = filteredQuestions.filter(q => q.status === 'revised').length;
+            const editedCount = filteredQuestions.filter(q => q.status === 'edited').length;
+            const qcPassedCount = filteredQuestions.filter(q => q.status === 'qc_passed').length;
 
             const paginationData = calculatePagination(
                 filteredQuestions.length,
@@ -80,8 +115,10 @@ const QuestionsTab = () => {
 
             setStats({
                 total: totalQuestions,
-                success: successCount,
-                revised: revisedCount
+                on_review: onReviewCount,
+                revised: revisedCount,
+                edited: editedCount,
+                qc_passed: qcPassedCount
             });
         } catch (err) {
             setError('Failed to fetch questions');
@@ -254,8 +291,10 @@ const QuestionsTab = () => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'active': return 'green';
+            case 'active': return 'yellow';
             case 'revised': return 'orange';
+            case 'edited': return 'blue';
+            case 'qc_passed': return 'green';
             default: return 'gray';
         }
     };
@@ -273,6 +312,59 @@ const QuestionsTab = () => {
 
     if (loading) return <LoadingSpinner message="Loading questions..." />;
     if (error) return <div className="error-message">{error}</div>;
+    const handleEditQuestion = (question) => {
+        setEditingQuestion({
+            ...question,
+            subject_id: question.subject.id,
+            chapter_id: question.chapter.id,
+            topic_id: question.topic.id,
+            concept_title_id: question.concept_title.id
+        });
+        setShowEditor(true);
+    };
+    const handleSaveEditedQuestion = async (questionData) => {
+        try {
+            setLoading(true);
+            const updatedQuestion = {
+                ...questionData,
+                status: 'edited',
+                is_edited: true,
+                edited_at: getJakartaISOString(),
+                edited_by: userData.id
+            }
+
+            await updateQuestion(editingQuestion.id, updatedQuestion);
+
+            await fetchQuestions();
+
+            setShowEditor(false);
+            setEditingQuestion(null);
+
+            console.log('Question updated successfully:', updatedQuestion);
+
+        } catch (error) {
+            console.error('Error updating question:', error);
+            setError('Failed to update question');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setShowEditor(false);
+        setEditingQuestion(null);
+    };
+
+    const getQuestionStatus = (status) => {
+        const statutes = {
+            "active": "👀 On Review",
+            "revised": "⚠ Revised",
+            "edited": "✏️ Edited",
+            "qc_passed": "✅ QC Passed"
+        }
+
+        return statutes[status];
+    }
 
     return (
         <div className="questions-tab">
@@ -286,13 +378,21 @@ const QuestionsTab = () => {
                     <div className="stat-number">{stats.total}</div>
                     <div className="stat-label">Total Questions</div>
                 </div>
-                <div className="stat-card success">
-                    <div className="stat-number">{stats.success}</div>
-                    <div className="stat-label">Success</div>
+                <div className="stat-card on_review">
+                    <div className="stat-number">{stats.on_review}</div>
+                    <div className="stat-label">On Review</div>
                 </div>
                 <div className="stat-card revised">
                     <div className="stat-number">{stats.revised}</div>
                     <div className="stat-label">Revised</div>
+                </div>
+                <div className="stat-card edited">
+                    <div className="stat-number">{stats.edited}</div>
+                    <div className="stat-label">Edited</div>
+                </div>
+                <div className="stat-card qc_passed">
+                    <div className="stat-number">{stats.qc_passed}</div>
+                    <div className="stat-label">QC Passed</div>
                 </div>
             </div>
 
@@ -304,8 +404,10 @@ const QuestionsTab = () => {
                         onChange={(e) => handleFilterChange('status', e.target.value)}
                     >
                         <option value="all">All</option>
-                        <option value="success">Success</option>
+                        <option value="on_review">On Review</option>
                         <option value="revised">Revised</option>
+                        <option value="edited">Edited</option>
+                        <option value="qc_passed">QC Passed</option>
                     </select>
                 </div>
 
@@ -374,7 +476,7 @@ const QuestionsTab = () => {
                                         <span
                                             className={`question-status ${getStatusColor(question.status)}`}
                                         >
-                                            {question.status === 'active' ? '✓ Success' : '⚠ Revised'}
+                                            {getQuestionStatus(question.status)}
                                         </span>
                                     </div>
                                     <div className="question-date">
@@ -406,6 +508,12 @@ const QuestionsTab = () => {
                                     >
                                         Preview
                                     </button>
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={() => handleEditQuestion(question)}
+                                    >
+                                        Edit
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -418,6 +526,21 @@ const QuestionsTab = () => {
                     data={previewData}
                     onClose={() => setShowPreview(false)}
                 />
+            )}
+
+            {showEditor && editingQuestion && (
+                <div className="question-editor-modal">
+                    <div className="question-editor-content">
+                        <QuestionEditor
+                            initialData={editingQuestion}
+                            onSave={handleSaveEditedQuestion}
+                            onCancel={handleCancelEdit}
+                            headerTitle="Edit Question"
+                            showPDF={true}
+                            pdfUrl={editingQuestion?.package?.public_url}
+                        />
+                    </div>
+                </div>
             )}
         </div>
     );

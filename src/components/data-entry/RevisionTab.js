@@ -115,7 +115,6 @@ const RevisionTab = () => {
         );
     };
 
-    // Komponen Filter untuk Acceptances (status + PIC)
     const AcceptanceFilterSection = ({ data, filteredData, onStatusFilterChange, onPicFilterChange, currentStatusFilter, currentPicFilter }) => {
         const availableStatuses = getAvailableStatuses(data);
         const availablePICs = getAvailablePICs(data);

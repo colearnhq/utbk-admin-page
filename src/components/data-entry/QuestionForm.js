@@ -116,7 +116,6 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
 
         let parsedAttachments = [];
 
-        // Jika berupa string JSON, parse dulu
         if (typeof attachments === 'string') {
             try {
                 parsedAttachments = JSON.parse(attachments);
@@ -150,31 +149,6 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
             }));
         }
     }, []);
-
-    const uploadAttachments = async (attachments, type) => {
-        const uploadedAttachments = [];
-        for (const file of attachments) {
-            // Jika file sudah ada (existing), langsung gunakan
-            if (file.isExisting || file.publicUrl) {
-                uploadedAttachments.push(file);
-                continue;
-            }
-
-            // Proses upload untuk file baru
-            const fileName = generateUniqueFileName(file.name, `${type}_`);
-            const supabaseUpload = await uploadFileToSupabase(file, `${type}-attachments`, fileName, null);
-            const googleDriveResult = await uploadFileToGoogleDrive(file, fileName);
-
-            uploadedAttachments.push({
-                fileName: fileName,
-                publicUrl: supabaseUpload.publicUrl,
-                googleDriveId: googleDriveResult.fileId,
-                googleDriveUrl: googleDriveResult.fileUrl,
-                originalName: file.name
-            });
-        }
-        return uploadedAttachments;
-    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -313,7 +287,6 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                     }
                     break;
 
-                // FORMAT BARU: Text Alignment
                 case 'align-left':
                     if (selectedText) {
                         newText = text.substring(0, start) + `<div style="text-align: left;">${selectedText}</div>` + text.substring(end);
@@ -384,16 +357,6 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                     }
                     break;
 
-                case 'blockquote':
-                    if (selectedText) {
-                        newText = text.substring(0, start) + `<blockquote>${selectedText}</blockquote>` + text.substring(end);
-                        newCursorPos = end + 25;
-                    } else {
-                        newText = text.substring(0, start) + '<blockquote></blockquote>' + text.substring(end);
-                        newCursorPos = start + 12;
-                    }
-                    break;
-
                 default:
                     return;
             }
@@ -426,13 +389,10 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
             { type: 'align-right', label: 'Align Right', icon: '⭢', group: 'alignment' },
             { type: 'align-justify', label: 'Justify', icon: '⭤⭢', group: 'alignment' },
 
-            // Indentation
             { type: 'indent', label: 'Paragraf dengan Indentasi', icon: '⇥', group: 'indent' },
 
-            // Lists and blocks
             { type: 'bullet-list', label: 'Bullet List', icon: '•', group: 'list' },
             { type: 'number-list', label: 'Number List', icon: '1.', group: 'list' },
-            { type: 'blockquote', label: 'Quote', icon: '❝', group: 'list' },
         ];
 
         const groupedButtons = formatButtons.reduce((groups, button) => {

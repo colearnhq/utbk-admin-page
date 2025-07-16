@@ -693,6 +693,7 @@ export const getQuestions = async (filters = {}) => {
                 subject:subjects(id, name),
                 chapter:chapters(id, name),
                 topic:topics(id, name),
+                package:question_packages(id, title, public_url),
                 concept_title:concept_titles(id, name),
                 created_by_user:users!questions_created_by_fkey(id, name),
                 revised_by_user:users!questions_revised_by_fkey(id, name)
