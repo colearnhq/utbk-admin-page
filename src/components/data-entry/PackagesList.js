@@ -15,6 +15,8 @@ const PackagesList = () => {
     const [subjectFilter, setSubjectFilter] = useState('');
     const [progressFilter, setProgressFilter] = useState('');
     const [sortDirection, setSortDirection] = useState('asc');
+    const [vendorFilter, setVendorFilter] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         fetchPackages();
@@ -54,13 +56,31 @@ const PackagesList = () => {
         return [...new Set(packages.map(pkg => pkg.subject))];
     };
 
+    const getUniqueVendors = () => {
+        return [...new Set(packages.map(pkg => pkg.vendor_name))];
+    };
+
     const applyFiltersAndSort = () => {
         let filtered = [...packages];
 
+        // Filter by search query (title)
+        if (searchQuery.trim()) {
+            filtered = filtered.filter(pkg =>
+                pkg.title.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        }
+
+        // Filter by subject
         if (subjectFilter) {
             filtered = filtered.filter(pkg => pkg.subject === subjectFilter);
         }
 
+        // Filter by vendor
+        if (vendorFilter) {
+            filtered = filtered.filter(pkg => pkg.vendor_name === vendorFilter);
+        }
+
+        // Filter by progress
         if (progressFilter) {
             filtered = filtered.filter(pkg => {
                 const status = getProgressStatus(pkg.progress.percentage);
@@ -68,6 +88,7 @@ const PackagesList = () => {
             });
         }
 
+        // Sort by progress
         filtered.sort((a, b) => {
             const aProgress = a.progress.percentage;
             const bProgress = b.progress.percentage;
@@ -77,9 +98,10 @@ const PackagesList = () => {
         setFilteredPackages(filtered);
     };
 
+
     useEffect(() => {
         applyFiltersAndSort();
-    }, [packages, subjectFilter, progressFilter, sortDirection]);
+    }, [packages, subjectFilter, vendorFilter, progressFilter, sortDirection, searchQuery]);
 
     const handleSubjectFilterChange = (e) => {
         setSubjectFilter(e.target.value);
@@ -91,6 +113,14 @@ const PackagesList = () => {
 
     const handleSortToggle = () => {
         setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    };
+
+    const handleVendorFilterChange = (e) => {
+        setVendorFilter(e.target.value);
+    };
+
+    const handleSearchChange = (e) => {
+        setSearchQuery(e.target.value);
     };
 
     const getSubjectAbbreviation = (subject) => {
@@ -127,11 +157,23 @@ const PackagesList = () => {
             </div>
 
             <div className="filters-section">
+                <div className="search-group">
+                    <label htmlFor="search-input">Search by Title:</label>
+                    <input
+                        id="search-input"
+                        type="text"
+                        value={searchQuery}
+                        onChange={handleSearchChange}
+                        placeholder="Search packages by title..."
+                        className="search-input"
+                    />
+                </div>
+
                 <div className="filter-group">
                     <label htmlFor="subject-filter">Subject:</label>
-                    <select 
+                    <select
                         id="subject-filter"
-                        value={subjectFilter} 
+                        value={subjectFilter}
                         onChange={handleSubjectFilterChange}
                         className="filter-select"
                     >
@@ -143,10 +185,25 @@ const PackagesList = () => {
                 </div>
 
                 <div className="filter-group">
+                    <label htmlFor="vendor-filter">Vendor:</label>
+                    <select
+                        id="vendor-filter"
+                        value={vendorFilter}
+                        onChange={handleVendorFilterChange}
+                        className="filter-select"
+                    >
+                        <option value="">All Vendors</option>
+                        {getUniqueVendors().map(vendor => (
+                            <option key={vendor} value={vendor}>{vendor}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="filter-group">
                     <label htmlFor="progress-filter">Progress:</label>
-                    <select 
+                    <select
                         id="progress-filter"
-                        value={progressFilter} 
+                        value={progressFilter}
                         onChange={handleProgressFilterChange}
                         className="filter-select"
                     >
@@ -158,7 +215,7 @@ const PackagesList = () => {
                 </div>
 
                 <div className="sort-group">
-                    <button 
+                    <button
                         onClick={handleSortToggle}
                         className="sort-btn"
                     >
