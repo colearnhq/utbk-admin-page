@@ -11,6 +11,7 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
         topic_id: '',
         concept_title_id: '',
         question_type: 'MCQ',
+        question_number: '',
         question: '',
         question_attachments: [],
         option_a: '',
@@ -469,6 +470,7 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                 topic_id: '',
                 concept_title_id: '',
                 question_type: 'MCQ',
+                question_number: '',
                 question: '',
                 question_attachments: [],
                 option_a: '',
@@ -612,6 +614,19 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                             <option value="Short Answer">Short Answer</option>
                         </select>
                     </div>
+                </div>
+
+                <div className="form-group">
+                    <label htmlFor="question_numb">Question Number</label>
+                    <input
+                        type='number'
+                        id="question_number"
+                        name="question_number"
+                        value={formData.question_number}
+                        onChange={handleInputChange}
+                        required
+                        placeholder="Enter the question number based on the package."
+                    />
                 </div>
 
                 <div className="form-group">

@@ -591,6 +591,12 @@
     align-items: center;
 }
 
+.question-note {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
 .question-id {
     font-weight: 600;
     color: #374151;

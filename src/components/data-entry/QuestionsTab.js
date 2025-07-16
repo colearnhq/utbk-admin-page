@@ -325,6 +325,7 @@ const QuestionsTab = () => {
     const handleSaveEditedQuestion = async (questionData) => {
         try {
             setLoading(true);
+
             const updatedQuestion = {
                 ...questionData,
                 status: 'edited',
@@ -479,9 +480,17 @@ const QuestionsTab = () => {
                                             {getQuestionStatus(question.status)}
                                         </span>
                                     </div>
-                                    <div className="question-date">
-                                        {new Date(question.created_at).toLocaleDateString()}
+                                    <div className="question-note">
+                                        {question.question_number && (
+                                            <div className="question-number">
+                                                Question Number #{question.question_number}
+                                            </div>
+                                        )}
+                                        <div className="question-date">
+                                            {new Date(question.created_at).toLocaleDateString()}
+                                        </div>
                                     </div>
+
                                 </div>
 
                                 <div className="question-content">

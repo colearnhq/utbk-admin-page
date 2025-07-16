@@ -29,7 +29,6 @@ const QuestionEditor = ({
         e.preventDefault();
     };
     const question = initialData;
-    console.log(`cek question in Question Editor: ${JSON.stringify(question)}`)
     const handleMouseMove = (e) => {
         if (!isDragging || !showPDF) return;
 
@@ -55,6 +54,7 @@ const QuestionEditor = ({
             topic_id: question.topic?.id,
             concept_title_id: question.concept_title?.id,
             question_type: question.question_type,
+            question_number: question.question_number || '',
             question: question.question,
             option_a: question.option_a,
             option_b: question.option_b,
