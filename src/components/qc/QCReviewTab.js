@@ -8,24 +8,25 @@ const QCReviewTab = ({ status, title }) => {
   const [loading, setLoading] = useState(true);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  
-  // Filter states
+
   const [filters, setFilters] = useState({
     subject: '',
     chapter: '',
-    topic: ''
   });
-  
+
   const [filterOptions, setFilterOptions] = useState({
     subjects: [],
     chapters: [],
-    topics: []
   });
 
   useEffect(() => {
     fetchQuestions();
     fetchFilterOptions();
   }, [status, filters]);
+
+  const createUniqueMetadata = (values) => {
+    return [...new Map(values.map(object => [object["name"], object])).values()];
+  }
 
   const fetchQuestions = async () => {
     try {
@@ -44,13 +45,15 @@ const QCReviewTab = ({ status, title }) => {
       const [subjects, chapters, topics] = await Promise.all([
         getSubjects(),
         getChapters(),
-        getTopics()
       ]);
-      
+
+      let uniqueChapters = createUniqueMetadata(chapters);
+
+      console.log(`cek: ${uniqueChapters}`)
+
       setFilterOptions({
         subjects,
-        chapters,
-        topics
+        uniqueChapters,
       });
     } catch (error) {
       console.error('Error fetching filter options:', error);
@@ -70,7 +73,7 @@ const QCReviewTab = ({ status, title }) => {
   const handleQCSubmit = async () => {
     setShowModal(false);
     setSelectedQuestion(null);
-    await fetchQuestions(); // Refresh the list
+    await fetchQuestions();
   };
 
   const handleFilterChange = (filterType, value) => {
@@ -84,7 +87,6 @@ const QCReviewTab = ({ status, title }) => {
     setFilters({
       subject: '',
       chapter: '',
-      topic: ''
     });
   };
 
@@ -128,28 +130,11 @@ const QCReviewTab = ({ status, title }) => {
               onChange={(e) => handleFilterChange('chapter', e.target.value)}
             >
               <option value="">All Chapters</option>
-              {filterOptions.chapters
+              {filterOptions.uniqueChapters
                 .filter(chapter => !filters.subject || chapter.subject_id === filters.subject)
                 .map(chapter => (
                   <option key={chapter.id} value={chapter.id}>
                     {chapter.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <label>Topic:</label>
-            <select
-              value={filters.topic}
-              onChange={(e) => handleFilterChange('topic', e.target.value)}
-            >
-              <option value="">All Topics</option>
-              {filterOptions.topics
-                .filter(topic => !filters.chapter || topic.chapter_id === filters.chapter)
-                .map(topic => (
-                  <option key={topic.id} value={topic.id}>
-                    {topic.name}
                   </option>
                 ))}
             </select>
