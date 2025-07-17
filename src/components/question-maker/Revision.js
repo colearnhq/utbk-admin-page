@@ -16,11 +16,9 @@ const Revision = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [showAttachment, setShowAttachment] = useState(null);
 
-    // Question preview modal states
     const [showQuestionPreview, setShowQuestionPreview] = useState(false);
     const [previewQuestionData, setPreviewQuestionData] = useState(null);
 
-    // File upload states
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -152,10 +150,8 @@ const Revision = () => {
 
             const revision = revisions.find(r => r.id === revisionId);
             if (newStatus === 'approved' && revision?.remarks === 'EASY_QUESTION_REVISION') {
-                // Use the new approve function for easy questions
                 await approveQuestionMakerRevision(revisionId, responseNotes, fileData, userData.id);
             } else {
-                // Use existing logic for other cases
                 await updateRevisionStatus(revisionId, newStatus, responseNotes, userData.id, fileData);
             }
 
@@ -183,7 +179,6 @@ const Revision = () => {
     const handleQuestionPreview = (revision) => {
         if (!revision.question) return;
 
-        // Transform the question data to match QuestionPreview component expectations
         const questionData = {
             ...revision.question,
             subject_name: revision.question.subject?.name || 'Unknown',
@@ -495,7 +490,6 @@ const Revision = () => {
                                 Cancel
                             </button>
                             {selectedRevision?.remarks === 'EASY_QUESTION_REVISION' ? (
-                                // Easy question - only approve button (auto sends to Data Entry)
                                 <button
                                     className="btn btn-success"
                                     onClick={() => handleResponse(selectedRevision.id, 'approved')}
@@ -526,7 +520,6 @@ const Revision = () => {
                 </div>
             )}
 
-            {/* Attachment Viewer Modal */}
             {showAttachment && (
                 <div className="attachment-modal">
                     <div className="attachment-modal-content">

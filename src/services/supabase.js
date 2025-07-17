@@ -313,7 +313,7 @@ export const getPackagesWithProgress = async (userId = null) => {
         let packagesQuery = supabase
             .from('question_packages')
             .select('id, title, question_package_number, subject, vendor_name, amount_of_questions, status, public_url')
-            .eq('status', 'pending');
+            .in('status', ['pending', 'revised']);
 
         if (userId) {
             packagesQuery = packagesQuery.eq('uploaded_by', userId);
@@ -1317,6 +1317,11 @@ export const updateRevisionStatus = async (id, status, responseNotes = null, res
             updated_at: getJakartaISOString()
         };
 
+        const updateQuestion = {
+            status: 'revised',
+            public_url: fileData[0]?.url
+        };
+
         if (responseNotes) {
             updateData.response_notes = responseNotes;
         }
@@ -1330,7 +1335,7 @@ export const updateRevisionStatus = async (id, status, responseNotes = null, res
             updateData.revision_attachment_urls = JSON.stringify(fileData);
         }
 
-        const { data, error } = await supabase
+        const { data: revisionData, error: revisionError } = await supabase
             .from('revisions')
             .update(updateData)
             .eq('id', id)
@@ -1341,12 +1346,20 @@ export const updateRevisionStatus = async (id, status, responseNotes = null, res
                 responded_by_user:users!revision_requests_responded_by_fkey(id, name)
             `);
 
-        if (error) {
-            console.error('Error updating revision status:', error);
-            throw error;
+        if (revisionError) {
+            console.error('Error updating revision status:', revisionError);
+            throw revisionError;
         }
 
-        return data[0];
+        const { data: questionData, error: questionError } = await supabase
+            .from('question_packages')
+            .update(updateQuestion)
+            .eq('id', revisionData[0].package_id)
+            .select('*');
+
+        if (questionError) throw questionError;
+
+        return revisionData[0];
     } catch (error) {
         console.error('Error in updateRevisionStatus function:', error);
         throw error;
