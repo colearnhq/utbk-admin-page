@@ -27,13 +27,9 @@ export const AuthProvider = ({ children }) => {
 
             if (firebaseUser) {
                 try {
-                    console.log('Firebase user detected:', firebaseUser.email);
-
-                    console.log('Checking user in database...');
                     const supabaseUser = await getUserByEmail(firebaseUser.email);
 
                     if (!supabaseUser) {
-                        // User not found in database - deny access
                         console.log('User not found in database, denying access');
                         await logOut();
                         setError('Email Anda tidak terdaftar dalam sistem. Silakan hubungi administrator untuk mendapatkan akses.');
@@ -43,8 +39,6 @@ export const AuthProvider = ({ children }) => {
                         return;
                     }
 
-                    // User found in database - allow access
-                    console.log('User found in database:', supabaseUser);
                     setUser(firebaseUser);
                     setUserData(supabaseUser);
 

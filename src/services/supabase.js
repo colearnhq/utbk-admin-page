@@ -12,11 +12,6 @@ const getJakartaISOString = () => {
     return jakartaTime.toISOString().replace(/Z$/, '+07:00');
 };
 
-console.log('Supabase configuration:', {
-    url: supabaseUrl,
-    key: supabaseAnonKey ? 'Present' : 'Missing'
-});
-
 if (!supabaseUrl || !supabaseAnonKey) {
     console.error('Missing Supabase configuration!');
     console.error('REACT_APP_SUPABASE_URL:', supabaseUrl);
@@ -29,7 +24,6 @@ export const testConnection = async () => {
     try {
         const { data, error } = await supabase.from('users').select('count', { count: 'exact', head: true });
         if (error) throw error;
-        console.log('Supabase connection test successful');
         return true;
     } catch (error) {
         console.error('Supabase connection test failed:', error);
@@ -75,7 +69,6 @@ export const createUser = async (userData) => {
 };
 
 export const getUserByEmail = async (email) => {
-    console.log('Looking up user by email:', email);
 
     try {
         const connectionOk = await testConnection();
@@ -94,7 +87,6 @@ export const getUserByEmail = async (email) => {
             throw new Error(`Database error: ${error.message}`);
         }
 
-        console.log('User lookup result:', data);
         return data;
     } catch (err) {
         console.error('Error in getUserByEmail function:', err);
@@ -749,6 +741,25 @@ export const getQuestionById = async (questionId) => {
     }
 };
 
+export const getCurrentQuestion = async (qId) => {
+    try {
+        const { data: currentQuestion, error: fetchError } = await supabase
+            .from('questions')
+            .select('qc_status, qc_reviewer_id')
+            .eq('id', qId)
+            .single();
+
+        if (fetchError) {
+            throw new Error('Failed to verify question status: ' + fetchError.message);
+        }
+
+        return { currentQuestion, fetchError };
+    } catch (e) {
+        console.error('Error releasing question from review:', e);
+        alert(e.message || 'Failed to release question. Please try again.');
+    }
+}
+
 export const updateQuestion = async (questionId, questionData) => {
     try {
         const { data, error } = await supabase
@@ -1098,7 +1109,6 @@ export const getRevisionAcceptances = async () => {
     }
 };
 
-// Update revision request
 export const updateRevisionRequest = async (id, updateData) => {
     try {
         const { data, error } = await supabase
@@ -1662,7 +1672,7 @@ export const getQCStatistics = async () => {
         const stats = {
             totalQuestions: data.length,
             pendingReview: data.filter(q => q.qc_status === 'pending_review').length,
-            underReview: data.filter(q => q.qc_status === 'under_review').length,
+            underReview: data.filter(q => q.qc_status === 'under_qc_review').length,
             approved: data.filter(q => q.qc_status === 'approved').length,
             rejected: data.filter(q => q.qc_status === 'rejected').length,
             revisionRequested: data.filter(q => q.qc_status === 'revision_requested').length,
@@ -1676,7 +1686,46 @@ export const getQCStatistics = async () => {
     }
 };
 
-export const getQuestionsForQC = async (status, filters = {}) => {
+
+export const markQuestionAsUnderReview = async (questionId, reviewerId) => {
+    try {
+        const { data, error } = await supabase
+            .from('questions')
+            .update({
+                qc_status: 'under_qc_review',
+                qc_reviewer_id: reviewerId,
+                qc_review_started_at: new Date().toISOString()
+            })
+            .eq('id', questionId)
+            .eq('qc_status', 'pending_review')
+            .is('qc_reviewer_id', null)
+            .select();
+
+        if (error) {
+            throw error;
+        }
+
+        if (!data || data.length === 0) {
+            throw new Error('Question may have already been taken by another reviewer');
+        }
+
+        return data[0];
+    } catch (error) {
+        console.error('Error marking question as under review:', error);
+        throw error;
+    }
+};
+
+
+export const getQuestionsForQC = async (status, filters = {}, options = {}) => {
+    const {
+        excludeUnderReview = false,
+        showOnlyMyReviews = false,
+        reviewerId,
+        page = 1,
+        limit = 10
+    } = options;
+
     try {
         let query = supabase
             .from('questions')
@@ -1688,13 +1737,19 @@ export const getQuestionsForQC = async (status, filters = {}) => {
                 concept_title_name:concept_titles(name),
                 creator_name:users!questions_created_by_fkey(name),
                 qc_reviewer_name:users!questions_qc_reviewer_id_fkey(name)
-            `)
+            `, { count: 'exact' })
             .order('created_at', { ascending: false });
 
-        if (Array.isArray(status)) {
-            query = query.in('qc_status', status);
+        if (status === 'under_qc_review') {
+            query = query.eq('qc_status', 'under_qc_review');
+        } else if (status === 'pending_review' && excludeUnderReview) {
+            query = query.eq('qc_status', 'pending_review');
         } else {
-            query = query.eq('qc_status', status);
+            if (Array.isArray(status)) {
+                query = query.in('qc_status', status);
+            } else {
+                query = query.eq('qc_status', status);
+            }
         }
 
         if (filters.subject) {
@@ -1706,12 +1761,25 @@ export const getQuestionsForQC = async (status, filters = {}) => {
         if (filters.topic) {
             query = query.eq('topic_id', filters.topic);
         }
+        if (filters.qc_reviewer) {
+            query = query.eq('qc_reviewer_id', filters.qc_reviewer);
+        }
+        if (filters.search) {
+            query = query.ilike('inhouse_id', `%${filters.search}%`);
+        }
 
-        const { data, error } = await query;
+        if (showOnlyMyReviews && reviewerId) {
+            query = query.eq('qc_reviewer_id', reviewerId);
+        }
+
+        const startIndex = (page - 1) * limit;
+        query = query.range(startIndex, startIndex + limit - 1);
+
+        const { data, error, count } = await query;
 
         if (error) throw error;
 
-        return data.map(question => ({
+        const transformedData = data?.map(question => ({
             ...question,
             subject_name: question.subject_name?.name || 'Unknown',
             chapter_name: question.chapter_name?.name || 'Unknown',
@@ -1719,9 +1787,74 @@ export const getQuestionsForQC = async (status, filters = {}) => {
             concept_title_name: question.concept_title_name?.name || 'Unknown',
             creator_name: question.creator_name?.name || 'Unknown',
             qc_reviewer_name: question.qc_reviewer_name?.name || null
-        }));
+        })) || [];
+
+        return {
+            questions: transformedData,
+            total: count || 0,
+            page,
+            limit,
+            totalPages: Math.ceil((count || 0) / limit)
+        };
+
     } catch (error) {
         console.error('Error fetching questions for QC:', error);
+        throw error;
+    }
+};
+
+export const getQCReviewersFromQuestions = async () => {
+    try {
+        const { data, error } = await supabase
+            .from('questions')
+            .select(`
+                qc_reviewer_id,
+                qc_reviewer_name:users!questions_qc_reviewer_id_fkey(name)
+            `)
+            .not('qc_reviewer_id', 'is', null);
+
+        if (error) throw error;
+
+        const uniqueReviewers = [];
+        const seen = new Set();
+
+        data?.forEach(item => {
+            if (item.qc_reviewer_id && !seen.has(item.qc_reviewer_id)) {
+                seen.add(item.qc_reviewer_id);
+                uniqueReviewers.push({
+                    id: item.qc_reviewer_id,
+                    name: item.qc_reviewer_name?.name || 'Unknown'
+                });
+            }
+        });
+
+        return uniqueReviewers;
+    } catch (error) {
+        console.error('Error fetching QC reviewers from questions:', error);
+        throw error;
+    }
+};
+
+
+export const releaseQuestionFromReview = async (questionId, reviewerId) => {
+    try {
+        const { data, error } = await supabase
+            .from('questions')
+            .update({
+                qc_status: 'pending_review',
+                qc_reviewer_id: null,
+                qc_review_started_at: null
+            })
+            .eq('id', questionId)
+            .eq('qc_reviewer_id', reviewerId);
+
+        if (error) {
+            throw error;
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error releasing question from review:', error);
         throw error;
     }
 };
