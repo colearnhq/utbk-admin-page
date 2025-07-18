@@ -799,6 +799,10 @@
     min-width: 250px;
 }
 
+.search-on-question {
+    flex: 0;
+}
+
 .search-group label {
     display: block;
     font-weight: 600;

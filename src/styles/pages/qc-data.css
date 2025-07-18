@@ -817,3 +817,539 @@
         gap: 1rem;
     }
 }
+
+/* Add this to your qc-data.css file */
+
+.new-questions-tab {
+    width: 100%;
+}
+
+.sub-tab-navigation {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 0 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.sub-tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-weight: 500;
+    color: #666;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sub-tab-btn:hover {
+    color: #333;
+    background-color: #f5f5f5;
+}
+
+.sub-tab-btn.active {
+    color: #2196F3;
+    border-bottom-color: #2196F3;
+    background-color: #f8f9fa;
+}
+
+.sub-tab-content {
+    padding: 0 20px;
+}
+
+/* Update existing styles if needed */
+.qc-review-tab {
+    padding: 0;
+}
+
+.tab-header {
+    padding: 20px 0;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 20px;
+}
+
+.tab-header h2 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.tab-description {
+    color: #666;
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Add visual indicator for questions under review */
+.question-card.under-review {
+    border-left: 4px solid #ff9800;
+    background-color: #fff3e0;
+}
+
+.question-card.under-review .question-header::after {
+    content: "🔍 Under Review";
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #ff9800;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.qc-status-badge.on-review {
+    background-color: #ff9800;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    margin-bottom: 1rem;
+}
+
+.qc-status-badge .badge-text {
+    font-weight: bold;
+}
+
+.qc-status-badge .reviewer-info {
+    display: block;
+    font-size: 0.9em;
+    opacity: 0.9;
+    margin-top: 2px;
+}
+
+.question-card.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.question-card.disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Cancel Confirmation Modal Styles */
+.cancel-confirmation-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    /* Sedikit lebih gelap untuk menonjolkan modal */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    /* Lebih tinggi dari question-review-modal-overlay (z-index: 1000) */
+    padding: 1rem;
+}
+
+.cancel-confirmation-modal {
+    background: white;
+    border-radius: 12px;
+    max-width: 500px;
+    /* Lebar maksimum untuk modal konfirmasi */
+    width: 90%;
+    /* Responsif untuk layar kecil */
+    max-height: 80vh;
+    /* Batasi tinggi untuk mencegah overflow */
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+    /* Shadow lebih kuat */
+    position: relative;
+    /* Untuk positioning tombol close */
+}
+
+.cancel-confirmation-modal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f8fafc;
+    /* Latar belakang header yang konsisten */
+}
+
+.cancel-confirmation-modal .modal-content {
+    padding: 1.5rem;
+    font-size: 0.9rem;
+    color: #374151;
+}
+
+.cancel-confirmation-modal .modal-content p {
+    margin: 0 0 1rem 0;
+    line-height: 1.5;
+}
+
+.cancel-confirmation-modal .confirmation-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    background: #f8fafc;
+}
+
+.cancel-confirmation-modal .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.cancel-confirmation-modal .btn-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.cancel-confirmation-modal .btn-danger:hover {
+    background: #dc2626;
+}
+
+.cancel-confirmation-modal .btn-danger:disabled {
+    background: #f87171;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .cancel-confirmation-modal {
+        width: 95%;
+        max-height: 85vh;
+    }
+
+    .cancel-confirmation-modal .confirmation-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .cancel-confirmation-modal .btn {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* Pagination Container */
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0;
+    padding: 16px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.pagination-info {
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.pagination-text {
+    font-weight: 500;
+}
+
+/* Pagination Controls */
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pagination-btn {
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    background-color: white;
+    color: #495057;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    min-width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #f8f9fa;
+}
+
+.pagination-btn-prev,
+.pagination-btn-next {
+    font-weight: 600;
+    padding: 8px 16px;
+}
+
+.pagination-btn-number {
+    min-width: 40px;
+}
+
+.pagination-btn-number.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.pagination-btn-number.active:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+.pagination-ellipsis {
+    padding: 8px 4px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .pagination-container {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .pagination-info {
+        text-align: center;
+    }
+
+    .pagination-controls {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .pagination-btn {
+        font-size: 12px;
+        padding: 6px 10px;
+        min-width: 36px;
+    }
+
+    .pagination-btn-prev,
+    .pagination-btn-next {
+        padding: 6px 12px;
+    }
+}
+
+/* Alternative compact style */
+.pagination-container.compact {
+    padding: 12px;
+    margin: 16px 0;
+}
+
+.pagination-container.compact .pagination-btn {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+.pagination-container.compact .pagination-info {
+    font-size: 13px;
+}
+
+/* Filters Container */
+.filters-container {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.search-bar {
+    margin-bottom: 16px;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.search-input {
+    width: 100%;
+    max-width: 400px;
+    padding: 10px 16px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 14px;
+    background-color: white;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.search-input::placeholder {
+    color: #6c757d;
+}
+
+/* Filter Row */
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 150px;
+}
+
+.filter-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.filter-group select {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: white;
+    cursor: pointer;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.filter-group select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.filter-group select:hover {
+    border-color: #adb5bd;
+}
+
+/* Clear Filters Button */
+.clear-filters-btn {
+    padding: 8px 16px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+    height: fit-content;
+}
+
+.clear-filters-btn:hover {
+    background-color: #5a6268;
+}
+
+.clear-filters-btn:active {
+    background-color: #545b62;
+}
+
+.questions-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.questions-count {
+    font-size: 14px;
+    font-weight: 500;
+    color: #6c757d;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .filters-container {
+        padding: 16px;
+    }
+
+    .search-input {
+        max-width: 100%;
+    }
+
+    .filter-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .filter-group {
+        min-width: 100%;
+    }
+
+    .clear-filters-btn {
+        width: 100%;
+    }
+}
+
+/* Filter badges untuk menunjukkan filter aktif */
+.active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.filter-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background-color: #e3f2fd;
+    color: #1565c0;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.filter-badge-remove {
+    cursor: pointer;
+    margin-left: 4px;
+    color: #1565c0;
+    font-weight: bold;
+}
+
+.filter-badge-remove:hover {
+    color: #0d47a1;
+}
+
+.refreshing-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}

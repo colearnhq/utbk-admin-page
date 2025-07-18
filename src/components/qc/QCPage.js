@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import QCDashboard from './QCDashboard';
 import QCReviewTab from './QCReviewTab';
+import NewQuestionsTab from './NewQuestionsTab';
 import '../../styles/pages/data-entry.css';
 import '../../styles/pages/qc-data.css';
 
@@ -23,7 +24,7 @@ const QCPage = () => {
       case 'dashboard':
         return <QCDashboard />;
       case 'new-questions':
-        return <QCReviewTab status="pending_review" title="New Questions" />;
+        return <NewQuestionsTab />;
       case 'not-revised':
         return <QCReviewTab status="revision_requested" title="Not Revised" />;
       case 'revised':

@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { getQCUsers, submitQCReview } from '../../services/supabase';
+import { getQCUsers, submitQCReview, releaseQuestionFromReview, getCurrentQuestion } from '../../services/supabase';
 import QuestionPreview from '../data-entry/QuestionPreview';
+import { useAuth } from '../../hooks/useAuth';
 
-const QuestionReviewModal = ({ question, onClose, onSubmit }) => {
+const QuestionReviewModal = ({ question, onClose, onSubmit, onQuestionReleased }) => {
+  const { userData } = useAuth();
+  const [isClosing, setIsClosing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [qcUsers, setQCUsers] = useState([]);
   const [formData, setFormData] = useState({
     reviewerId: '',
@@ -29,7 +33,66 @@ const QuestionReviewModal = ({ question, onClose, onSubmit }) => {
 
   useEffect(() => {
     fetchQCUsers();
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        handleClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
   }, []);
+
+  const handleClose = () => {
+    if (isClosing) return;
+
+    if (question.qc_status === 'under_qc_review' && question.qc_reviewer_id === userData.id) {
+      setShowCancelConfirmation(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const handleCancelReview = async () => {
+    setIsClosing(true);
+    try {
+      const { currentQuestion, fetchError } = await getCurrentQuestion(question.id);
+
+      if (fetchError) {
+        throw new Error('Failed to verify question status: ' + fetchError.message);
+      }
+
+      if (currentQuestion.qc_status !== 'under_qc_review' || currentQuestion.qc_reviewer_id !== userData.id) {
+        throw new Error('This question is no longer under your review.');
+      }
+
+      await releaseQuestionFromReview(question.id, userData.id);
+      console.log(`Question ${question.id} released from review.`);
+
+      if (onQuestionReleased) {
+        onQuestionReleased();
+      } else {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error releasing question from review:', error);
+      alert(error.message || 'Failed to release question. Please try again.');
+    } finally {
+      setIsClosing(false);
+      setShowCancelConfirmation(false);
+    }
+  };
+
+  const handleContinueReview = () => {
+    setShowCancelConfirmation(false);
+    // Tetap di modal, tidak menutup
+  };
+
+  const handleDirectClose = () => {
+    // Untuk case dimana question bukan under_qc_review oleh user saat ini
+    onClose();
+  };
 
   const fetchQCUsers = async () => {
     try {
@@ -332,9 +395,54 @@ const QuestionReviewModal = ({ question, onClose, onSubmit }) => {
     </div>
   );
 
+  const renderCancelConfirmation = () => (
+    <div className="cancel-confirmation-overlay" onClick={handleContinueReview}>
+      <div className="cancel-confirmation-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>⚠️ Cancel Review?</h3>
+          <button
+            className="close-btn"
+            onClick={handleContinueReview}
+            disabled={isClosing}
+          >
+            ×
+          </button>
+        </div>
+        <div className="modal-content">
+          <p>
+            Are you sure you want to cancel reviewing this question?
+            This will release the question back to the available pool, allowing other reviewers to claim it.
+          </p>
+          {question.qc_review_started_at && (
+            <p>
+              <strong>Review started:</strong>
+              {new Date(question.qc_review_started_at).toLocaleString()}
+            </p>
+          )}
+        </div>
+        <div className="confirmation-actions">
+          <button
+            className="btn btn-secondary"
+            onClick={handleContinueReview}
+            disabled={isClosing}
+          >
+            Continue Review
+          </button>
+          <button
+            className="btn btn-danger"
+            onClick={handleCancelReview}
+            disabled={isClosing}
+          >
+            {isClosing ? 'Releasing...' : 'Yes, Cancel Review'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="question-review-modal-overlay">
-      <div className="question-review-modal">
+    <div className="question-review-modal-overlay" onClick={handleClose}>
+      <div className="question-review-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>QC Review - {question.inhouse_id}</h2>
           <div className="modal-actions">
@@ -344,7 +452,11 @@ const QuestionReviewModal = ({ question, onClose, onSubmit }) => {
             >
               👁️ Preview Question
             </button>
-            <button className="close-btn" onClick={onClose}>
+            <button
+              className="close-btn"
+              onClick={handleClose}
+              disabled={isClosing}
+            >
               ×
             </button>
           </div>
@@ -415,6 +527,8 @@ const QuestionReviewModal = ({ question, onClose, onSubmit }) => {
           onClose={() => setShowPreview(false)}
         />
       )}
+
+      {showCancelConfirmation && renderCancelConfirmation()}
     </div>
   );
 };
