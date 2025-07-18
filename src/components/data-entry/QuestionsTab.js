@@ -36,6 +36,7 @@ const QuestionsTab = () => {
     });
     const [showEditor, setShowEditor] = useState(false);
     const [editingQuestion, setEditingQuestion] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
     const { userData } = useAuth();
 
     useEffect(() => {
@@ -44,7 +45,7 @@ const QuestionsTab = () => {
 
     useEffect(() => {
         fetchQuestions();
-    }, [filters, pagination.currentPage, pagination.itemsPerPage]);
+    }, []);
 
     useEffect(() => {
         const handleEscKey = (e) => {
@@ -64,12 +65,66 @@ const QuestionsTab = () => {
         };
     }, [showEditor]);
 
+    useEffect(() => {
+        applyFiltersAndSearch();
+    }, [allQuestions, filters, searchQuery]);
+
     const getJakartaISOString = () => {
         const now = new Date();
         const jakartaOffset = 7 * 60;
         const jakartaTime = new Date(now.getTime() + (jakartaOffset * 60 * 1000));
 
         return jakartaTime.toISOString().replace(/Z$/, '+07:00');
+    };
+
+    const applyFiltersAndSearch = () => {
+        let filteredData = allQuestions;
+
+        if (filters.status !== 'all') {
+            const statusValue = filters.status === 'on_review' ? 'active' : filters.status;
+            filteredData = filteredData.filter(q => q.status === statusValue);
+        }
+
+        if (filters.subject !== 'all') {
+            filteredData = filteredData.filter(q => q.subject?.id === filters.subject);
+        }
+
+        if (filters.questionType !== 'all') {
+            filteredData = filteredData.filter(q => q.question_type === filters.questionType);
+        }
+
+        if (filters.pic !== 'all') {
+            filteredData = filteredData.filter(q => q.created_by_user?.name === filters.pic);
+        }
+
+        if (searchQuery.trim()) {
+            filteredData = filteredData.filter(question =>
+                question.package?.title?.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        }
+
+        setQuestions(filteredData);
+
+        const totalQuestions = filteredData.length;
+        const onReviewCount = filteredData.filter(q => q.status === 'active').length;
+        const revisedCount = filteredData.filter(q => q.status === 'revised').length;
+        const editedCount = filteredData.filter(q => q.status === 'edited').length;
+        const qcPassedCount = filteredData.filter(q => q.status === 'qc_passed').length;
+
+        setStats({
+            total: totalQuestions,
+            on_review: onReviewCount,
+            revised: revisedCount,
+            edited: editedCount,
+            qc_passed: qcPassedCount
+        });
+
+        const paginationData = calculatePagination(
+            filteredData.length,
+            pagination.currentPage,
+            pagination.itemsPerPage
+        );
+        setPagination(paginationData);
     };
 
     const fetchInitialData = async () => {
@@ -85,12 +140,7 @@ const QuestionsTab = () => {
         try {
             setLoading(true);
 
-            const allQuestionsData = await getQuestions({
-                ...(filters.status !== 'all' && { status: filters.status === 'on_review' ? 'active' : filters.status }),
-                ...(filters.subject !== 'all' && { subject_id: filters.subject }),
-                ...(filters.questionType !== 'all' && { question_type: filters.questionType })
-            });
-
+            const allQuestionsData = await getQuestions();
             setAllQuestions(allQuestionsData);
 
             const filteredQuestions = filters.pic === 'all'
@@ -139,7 +189,8 @@ const QuestionsTab = () => {
         return Array.from(pics).sort();
     };
 
-    const calculatePagination = (totalItems, currentPage, itemsPerPage) => {
+    const calculatePagination = (totalItems, currentPage = 1, itemsPerPage = 10) => {
+
         const totalPages = Math.ceil(totalItems / itemsPerPage);
 
         return {
@@ -149,7 +200,15 @@ const QuestionsTab = () => {
             totalPages,
             startIndex: (currentPage - 1) * itemsPerPage,
             endIndex: Math.min(currentPage * itemsPerPage, totalItems)
-        }
+        };
+    };
+
+    const handleSearchChange = (e) => {
+        setSearchQuery(e.target.value);
+        setPagination(prev => ({
+            ...prev,
+            currentPage: 1
+        }));
     };
 
     const handlePageChange = (newPage) => {
@@ -287,6 +346,11 @@ const QuestionsTab = () => {
             ...prev,
             [filterType]: value
         }));
+
+        setPagination(prev => ({
+            ...prev,
+            currentPage: 1
+        }));
     };
 
     const getStatusColor = (status) => {
@@ -340,8 +404,6 @@ const QuestionsTab = () => {
 
             setShowEditor(false);
             setEditingQuestion(null);
-
-            console.log('Question updated successfully:', updatedQuestion);
 
         } catch (error) {
             console.error('Error updating question:', error);
@@ -398,6 +460,18 @@ const QuestionsTab = () => {
             </div>
 
             <div className="questions-filters">
+                <div className="search-group search-on-question">
+                    <label htmlFor="search-input">Search by Package Name:</label>
+                    <input
+                        id="search-input"
+                        type="text"
+                        value={searchQuery}
+                        onChange={handleSearchChange}
+                        placeholder="Search by package name..."
+                        className="search-input"
+                    />
+                </div>
+
                 <div className="filter-group">
                     <label>Status:</label>
                     <select
@@ -499,6 +573,9 @@ const QuestionsTab = () => {
                                         <span className="tag">{question.chapter.name}</span>
                                         <span className="tag">{question.topic.name}</span>
                                         <span className="tag">{question.concept_title.name}</span>
+                                        {question.package?.title && (
+                                            <span className="tag package-tag">{question.package.title}</span>
+                                        )}
                                     </div>
 
                                     <div className="question-preview">
@@ -507,6 +584,9 @@ const QuestionsTab = () => {
 
                                     <div className="question-info">
                                         <span>Created by: {question.created_by_user?.name || 'Unknown'}</span>
+                                        {question.package?.title && (
+                                            <span> | Package: {question.package.title}</span>
+                                        )}
                                     </div>
                                 </div>
 

@@ -63,24 +63,20 @@ const PackagesList = () => {
     const applyFiltersAndSort = () => {
         let filtered = [...packages];
 
-        // Filter by search query (title)
         if (searchQuery.trim()) {
             filtered = filtered.filter(pkg =>
                 pkg.title.toLowerCase().includes(searchQuery.toLowerCase())
             );
         }
 
-        // Filter by subject
         if (subjectFilter) {
             filtered = filtered.filter(pkg => pkg.subject === subjectFilter);
         }
 
-        // Filter by vendor
         if (vendorFilter) {
             filtered = filtered.filter(pkg => pkg.vendor_name === vendorFilter);
         }
 
-        // Filter by progress
         if (progressFilter) {
             filtered = filtered.filter(pkg => {
                 const status = getProgressStatus(pkg.progress.percentage);
@@ -88,7 +84,6 @@ const PackagesList = () => {
             });
         }
 
-        // Sort by progress
         filtered.sort((a, b) => {
             const aProgress = a.progress.percentage;
             const bProgress = b.progress.percentage;
