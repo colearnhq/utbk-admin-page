@@ -502,7 +502,6 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
             solution_attachments: formData.solution_attachments || []
         };
 
-        console.log('Preview data being sent:', previewData); // Debug log
         onPreview(previewData);
     };
 

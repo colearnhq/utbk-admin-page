@@ -52,14 +52,13 @@ const QuestionCard = ({ question, onClick, showQCStatus = false }) => {
   };
 
   const getClickHint = () => {
-    if (question.qc_status === 'under_qc_review') {
+    if (question.qc_status === 'under_qc_review' || question.qc_status === 'under_review') {
       if (question.qc_reviewer_id === userData?.id) {
         return 'Click to continue review';
       } else {
         return 'Currently being reviewed by another user';
       }
-    }
-    return 'Click to review';
+    };
   };
 
   const isClickable = () => {

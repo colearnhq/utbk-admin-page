@@ -10,8 +10,8 @@ const QuestionReviewModal = ({ question, onClose, onSubmit, onQuestionReleased }
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [qcUsers, setQCUsers] = useState([]);
   const [formData, setFormData] = useState({
-    reviewerId: '',
-    difficulty: '',
+    reviewerId: userData.id,
+    difficulty: 'Hard',
     reviewNotes: '',
     rejectionNotes: '',
     keywords: [''],
@@ -20,6 +20,7 @@ const QuestionReviewModal = ({ question, onClose, onSubmit, onQuestionReleased }
   const [step, setStep] = useState(1); // 1: Basic info, 2: Decision, 3: Details
   const [decision, setDecision] = useState(''); // 'accept', 'reject'
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const keywordOptions = [
     'Coding & Formatting Error',
@@ -136,10 +137,44 @@ const QuestionReviewModal = ({ question, onClose, onSubmit, onQuestionReleased }
 
   const handleFileUpload = (event) => {
     const files = Array.from(event.target.files);
-    setFormData(prev => ({
-      ...prev,
-      evidenceFiles: [...prev.evidenceFiles, ...files]
-    }));
+
+    // Validasi file
+    const maxFileSize = 10 * 1024 * 1024; // 10MB
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+
+    const validFiles = [];
+    const invalidFiles = [];
+
+    files.forEach(file => {
+      if (!allowedTypes.includes(file.type)) {
+        invalidFiles.push(`${file.name}: Invalid file type`);
+      } else if (file.size > maxFileSize) {
+        invalidFiles.push(`${file.name}: File too large (max 10MB)`);
+      } else {
+        validFiles.push(file);
+      }
+    });
+
+    if (invalidFiles.length > 0) {
+      alert(`Some files were not added:\n${invalidFiles.join('\n')}`);
+    }
+
+    if (validFiles.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        evidenceFiles: [...prev.evidenceFiles, ...validFiles]
+      }));
+    }
+
+    event.target.value = '';
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const removeFile = (index) => {
@@ -157,7 +192,7 @@ const QuestionReviewModal = ({ question, onClose, onSubmit, onQuestionReleased }
         return;
       }
       if (formData.difficulty === 'easy') {
-        setStep(3); // Skip decision step for easy questions
+        setStep(3);
       } else {
         setStep(2);
       }
@@ -173,14 +208,12 @@ const QuestionReviewModal = ({ question, onClose, onSubmit, onQuestionReleased }
   const handleSubmit = async () => {
     try {
       setLoading(true);
+      setUploading(true);
 
       let finalStatus = 'pending_review';
       let targetRole = null;
 
-      if (formData.difficulty === 'easy') {
-        finalStatus = 'revision_requested';
-        targetRole = 'question_maker';
-      } else {
+      if (formData.difficulty !== 'easy') {
         if (decision === 'accept') {
           finalStatus = 'approved';
         } else if (decision === 'reject') {
@@ -191,7 +224,7 @@ const QuestionReviewModal = ({ question, onClose, onSubmit, onQuestionReleased }
           );
           targetRole = hasDataEntryKeywords ? 'data_entry' : 'question_maker';
         }
-      }
+      };
 
       await submitQCReview({
         questionId: question.id,
@@ -211,6 +244,7 @@ const QuestionReviewModal = ({ question, onClose, onSubmit, onQuestionReleased }
       alert('Error submitting review. Please try again.');
     } finally {
       setLoading(false);
+      setUploading(false);
     }
   };
 
@@ -224,13 +258,9 @@ const QuestionReviewModal = ({ question, onClose, onSubmit, onQuestionReleased }
           value={formData.reviewerId}
           onChange={(e) => handleInputChange('reviewerId', e.target.value)}
           required
+          disabled
         >
-          <option value="">Select QC Reviewer</option>
-          {qcUsers.map(user => (
-            <option key={user.id} value={user.id}>
-              {user.name}
-            </option>
-          ))}
+          <option value={userData.id}>{userData.name}</option>
         </select>
       </div>
 
@@ -260,19 +290,21 @@ const QuestionReviewModal = ({ question, onClose, onSubmit, onQuestionReleased }
         </div>
       </div>
 
-      {formData.difficulty === 'easy' && (
-        <div className="form-group">
-          <label>Revision Notes *</label>
-          <textarea
-            value={formData.reviewNotes}
-            onChange={(e) => handleInputChange('reviewNotes', e.target.value)}
-            placeholder="Provide notes for why this question needs revision..."
-            rows="4"
-            required
-          />
-        </div>
-      )}
-    </div>
+      {
+        formData.difficulty === 'easy' && (
+          <div className="form-group">
+            <label>Revision Notes *</label>
+            <textarea
+              value={formData.reviewNotes}
+              onChange={(e) => handleInputChange('reviewNotes', e.target.value)}
+              placeholder="Provide notes for why this question needs revision..."
+              rows="4"
+              required
+            />
+          </div>
+        )
+      }
+    </div >
   );
 
   const renderStep2 = () => (
@@ -366,27 +398,79 @@ const QuestionReviewModal = ({ question, onClose, onSubmit, onQuestionReleased }
 
           <div className="form-group">
             <label>Evidence Attachments</label>
-            <input
-              type="file"
-              multiple
-              accept="image/*,.pdf"
-              onChange={handleFileUpload}
-              className="file-input"
-            />
+            <div className="file-upload-container">
+              <input
+                type="file"
+                multiple
+                accept="image/*,.pdf"
+                onChange={handleFileUpload}
+                className="file-input"
+                id="evidence-upload"
+              />
+              <label htmlFor="evidence-upload" className="file-upload-label">
+                📎 Choose Files
+              </label>
+              <div className="file-upload-hint">
+                Accepted formats: Images (JPEG, PNG, GIF, WebP) and PDF files. Max size: 10MB per file.
+              </div>
+            </div>
+
             {formData.evidenceFiles.length > 0 && (
               <div className="file-list">
-                {formData.evidenceFiles.map((file, index) => (
-                  <div key={index} className="file-item">
-                    <span>{file.name}</span>
+                <div className="file-list-header">
+                  <span>Selected Files ({formData.evidenceFiles.length})</span>
+                  {formData.evidenceFiles.length > 1 && (
                     <button
                       type="button"
-                      className="remove-file-btn"
-                      onClick={() => removeFile(index)}
+                      className="clear-all-btn"
+                      onClick={() => setFormData(prev => ({ ...prev, evidenceFiles: [] }))}
+                      title="Remove all files"
                     >
-                      ×
+                      Clear All
                     </button>
-                  </div>
-                ))}
+                  )}
+                </div>
+
+                {/* Scrollable container dengan max-height */}
+                <div className="file-list-container">
+                  {formData.evidenceFiles.map((file, index) => (
+                    <div key={index} className="file-item">
+                      <div className="file-info">
+                        <div className="file-main-info">
+                          <span className="file-name" title={file.name}>
+                            {file.name.length > 30 ? `${file.name.substring(0, 30)}...` : file.name}
+                          </span>
+                          <span className="file-size">{formatFileSize(file.size)}</span>
+                        </div>
+                        <div className="file-type">
+                          {file.type.startsWith('image/') ? '🖼️' : '📄'} {file.type}
+                        </div>
+                      </div>
+
+                      <div className="file-actions">
+                        <button
+                          type="button"
+                          className="remove-file-btn"
+                          onClick={() => removeFile(index)}
+                          title={`Remove ${file.name}`}
+                          aria-label={`Remove file ${file.name}`}
+                        >
+                          <span className="remove-icon">×</span>
+                          <span className="remove-text">Remove</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Summary info */}
+                <div className="file-list-summary">
+                  <span className="total-size">
+                    Total size: {formatFileSize(
+                      formData.evidenceFiles.reduce((total, file) => total + file.size, 0)
+                    )}
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -441,7 +525,7 @@ const QuestionReviewModal = ({ question, onClose, onSubmit, onQuestionReleased }
   );
 
   return (
-    <div className="question-review-modal-overlay" onClick={handleClose}>
+    <div className="question-review-modal-overlay">
       <div className="question-review-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>QC Review - {question.inhouse_id}</h2>

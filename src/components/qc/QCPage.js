@@ -26,7 +26,7 @@ const QCPage = () => {
       case 'new-questions':
         return <NewQuestionsTab />;
       case 'not-revised':
-        return <QCReviewTab status="revision_requested" title="Not Revised" />;
+        return <QCReviewTab status={['revision_requested', 'rejected']} title="Not Revised" />;
       case 'revised':
         return <QCReviewTab status="under_review" title="Revised Questions" />;
       case 'approved':

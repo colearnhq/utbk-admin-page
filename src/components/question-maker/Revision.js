@@ -38,7 +38,6 @@ const Revision = () => {
                         target_role: 'question_maker',
                         status: 'pending'
                     });
-
                 } else {
                     const approvedRevisions = await getRevisions({
                         target_role: 'question_maker',
@@ -149,7 +148,7 @@ const Revision = () => {
             }
 
             const revision = revisions.find(r => r.id === revisionId);
-            if (newStatus === 'approved' && revision?.remarks === 'EASY_QUESTION_REVISION') {
+            if (newStatus === 'approved' && (revision?.remarks === 'EASY_QUESTION_REVISION' || revision?.remarks === 'SEND_TO_QUESTION_MAKER')) {
                 await approveQuestionMakerRevision(revisionId, responseNotes, fileData, userData.id);
             } else {
                 await updateRevisionStatus(revisionId, newStatus, responseNotes, userData.id, fileData);
@@ -261,7 +260,7 @@ const Revision = () => {
             </div>
         );
     };
-    console.log(`cek revisions: ${JSON.stringify(revisions)}`)
+
     return (
         <div className="revision-container">
             <div className="revision-header">
@@ -489,7 +488,7 @@ const Revision = () => {
                             >
                                 Cancel
                             </button>
-                            {selectedRevision?.remarks === 'EASY_QUESTION_REVISION' ? (
+                            {(selectedRevision?.remarks === 'EASY_QUESTION_REVISION' || selectedRevision?.remarks === 'SEND_TO_QUESTION_MAKER') ? (
                                 <button
                                     className="btn btn-success"
                                     onClick={() => handleResponse(selectedRevision.id, 'approved')}

@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import QCReviewTab from './QCReviewTab';
+import { getQuestions } from '../../services/supabase';
 
 const NewQuestionsTab = () => {
     const [activeSubTab, setActiveSubTab] = useState('available');
+    const [countQuestions, setCountQuestions] = useState({
+        available: 0,
+        under_review: 0
+    })
     const [refreshKey, setRefreshKey] = useState(0);
 
     const handleQuestionMoved = (action) => {
@@ -16,6 +21,31 @@ const NewQuestionsTab = () => {
             setActiveSubTab('under-qc-review');
         }
     };
+
+    const countQuestionBasedOnStatus = async () => {
+        try {
+            const availableQuestions = await getQuestions({
+                qc_status: 'pending_review'
+            });
+            const underReviewQuestions = await getQuestions({
+                qc_status: 'under_qc_review'
+            });
+
+            console.log('Available questions:', availableQuestions);
+            console.log('Under review questions:', underReviewQuestions);
+
+            setCountQuestions({
+                available: availableQuestions.length,
+                under_review: underReviewQuestions.length
+            });
+        } catch (e) {
+            throw new Error(`failed to count the questions: ${e.message}`)
+        }
+    };
+
+    useEffect(() => {
+        countQuestionBasedOnStatus();
+    }, [refreshKey]);
 
     const renderSubTabContent = () => {
         switch (activeSubTab) {
@@ -59,13 +89,13 @@ const NewQuestionsTab = () => {
                     className={`sub-tab-btn ${activeSubTab === 'available' ? 'active' : ''}`}
                     onClick={() => setActiveSubTab('available')}
                 >
-                    📋 Available Questions
+                    📋 Available Questions ({countQuestions.available})
                 </button>
                 <button
                     className={`sub-tab-btn ${activeSubTab === 'under-qc-review' ? 'active' : ''}`}
                     onClick={() => setActiveSubTab('under-qc-review')}
                 >
-                    👤 Under QC Review
+                    👤 Under QC Review ({countQuestions.under_review})
                 </button>
             </div>
 

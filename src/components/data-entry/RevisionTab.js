@@ -186,11 +186,12 @@ const RevisionTab = () => {
             setLoading(true);
             const [requestsData, acceptancesData] = await Promise.all([
                 getRevisionsByUser(currentUserId, { revision_type: 'request' }),
-                getRevisionsByTargetRole('question_maker', { revision_type: 'acceptance' })
+                getRevisionsByTargetRole('data_entry', { revision_type: ['acceptance', 'recreation'] })
             ]);
 
             setRevisionRequests(requestsData);
             setRevisionAcceptances(acceptancesData);
+
         } catch (err) {
             setError('Failed to fetch revision data');
             console.error('Error fetching revision data:', err);
@@ -206,7 +207,7 @@ const RevisionTab = () => {
                 const data = await getRevisionsByUser(currentUserId, { revision_type: 'request' });
                 setRevisionRequests(data);
             } else {
-                const data = await getRevisionsByTargetRole('question_maker', { revision_type: 'acceptance' });
+                const data = await getRevisionsByTargetRole('question_maker', { revision_type: ['acceptance', 'recreation'] });
                 setRevisionAcceptances(data);
             }
         } catch (err) {
@@ -237,7 +238,7 @@ const RevisionTab = () => {
                     revised_by: null,
                     revised_at: null
                 };
-                await updateRevisionAcceptance(editingItem.id, updateData);
+                await updateRevisionAcceptance(editingItem.id, updateData, currentUserId);
             }
 
             alert(`${activeTab === 'request' ? 'Request' : 'Question'} updated successfully!`);
@@ -342,6 +343,22 @@ const RevisionTab = () => {
     if (loading) return <LoadingSpinner message={`Loading revision ${activeTab}s...`} />;
     if (error) return <div className="error-message">{error}</div>;
 
+    const getAttachmentUrl = () => {
+        try {
+            const urls = JSON.parse(editingItem?.revision_attachment_urls || '[]');
+
+            if (urls.length === 0 || !urls[0]?.url) {
+                return editingItem?.package?.public_url || null;
+            }
+
+            return urls[0].url;
+
+        } catch (error) {
+            console.error('Error parsing revision attachment URLs:', error);
+            return editingItem?.package?.public_url || null;
+        }
+    };
+    const attachmentUrl = getAttachmentUrl();
     if (editingItem && activeTab === 'acceptance') {
         return (
             <div
@@ -363,25 +380,25 @@ const RevisionTab = () => {
                             <strong>Issue Notes:</strong> {editingItem.notes}
                         </div>
                     </div>
-                    <div className="creator-actions">
+                    {attachmentUrl && <div className="creator-actions">
                         <a
-                            href={JSON.parse(editingItem?.revision_attachment_urls)[0].url}
+                            href={attachmentUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="btn btn-outline"
                         >
                             📥 Download PDF
                         </a>
-                    </div>
+                    </div>}
                 </div>
 
                 <div className="creator-content">
-                    <div
+                    {attachmentUrl && <div
                         className="pdf-section"
                         style={{ width: `${pdfWidth}%` }}
                     >
-                        <PDFViewer url={JSON.parse(editingItem?.revision_attachment_urls)[0].url} />
-                    </div>
+                        <PDFViewer url={attachmentUrl} />
+                    </div>}
 
                     <div
                         className="resize-handle"
@@ -405,6 +422,7 @@ const RevisionTab = () => {
                                     topic_id: editingItem.question.topic.id,
                                     concept_title_id: editingItem.question.concept_title.id,
                                     question_type: editingItem.question.question_type,
+                                    question_number: editingItem.question.question_number,
                                     question: editingItem.question.question,
                                     option_a: editingItem.question.option_a,
                                     option_b: editingItem.question.option_b,
@@ -768,12 +786,12 @@ const RevisionTab = () => {
                                             >
                                                 Preview
                                             </button>
-                                            <button
+                                            {acceptance.status === 'pending' && <button
                                                 className="btn btn-primary"
                                                 onClick={() => handleEditItem(acceptance)}
                                             >
                                                 Edit Question
-                                            </button>
+                                            </button>}
                                         </div>
                                     </div>
                                 );

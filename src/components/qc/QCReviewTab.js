@@ -50,6 +50,11 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
     setCurrentPage(1);
   }, [filters, status, excludeUnderReview, showOnlyMyReviews]);
 
+  useEffect(() => {
+    setSelectedQuestion(null);
+    setShowModal(false);
+  }, [status, excludeUnderReview, showOnlyMyReviews]);
+
   const createUniqueMetadata = (values) => {
     if (!Array.isArray(values)) return [];
     return [...new Map(values.map(object => [object["name"], object])).values()];
@@ -141,8 +146,14 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
           onQuestionMoved('moved_to_under_review');
         }
       } else {
-        setSelectedQuestion(question);
-        setShowModal(true);
+        const canShowModal = status === 'pending_review' || status === 'under_qc_review' || status === 'under_review';
+
+        if (canShowModal) {
+          setSelectedQuestion(question);
+          setShowModal(true);
+        } else {
+          console.log('Modal tidak tersedia untuk status ini:', status);
+        }
       }
     } catch (error) {
       console.error('Error handling question click:', error);
@@ -245,8 +256,8 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
     if (status === 'under_qc_review') {
       return 'Questions that are currently reviewing.';
     }
-    if (status === 'revision_requested') {
-      return 'Easy questions that were sent back to Question Maker but not yet revised';
+    if (Array.isArray(status) && status.includes('revision_requested') && status.includes('rejected')) {
+      return 'Questions that were sent back to Question Maker or rejected but not yet revised';
     }
     if (status === 'under_review') {
       return 'Questions that have been recreated by Data Entry and need re-review';
@@ -365,14 +376,20 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
         )}
       </div>
 
-      {showModal && selectedQuestion && (
-        <QuestionReviewModal
-          question={selectedQuestion}
-          onClose={handleCloseModal}
-          onSubmit={handleQCSubmit}
-          onQuestionReleased={handleQuestionReleased}
-        />
-      )}
+      {
+        showModal && selectedQuestion && (
+          status === 'pending_review' ||
+          status === 'under_qc_review' ||
+          status === 'under_review'
+        ) && (
+          <QuestionReviewModal
+            question={selectedQuestion}
+            onClose={handleCloseModal}
+            onSubmit={handleQCSubmit}
+            onQuestionReleased={handleQuestionReleased}
+          />
+        )
+      }
     </div>
   );
 };
