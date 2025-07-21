@@ -27,7 +27,6 @@ const QuestionPreview = ({ data, onClose }) => {
         return processedText;
     };
 
-    // Process complex LaTeX math for alt text or simplified rendering
     const processLatexMath = (latex) => {
         const symbolMap = {
             '\\mathrm{km}': 'km',
@@ -41,65 +40,58 @@ const QuestionPreview = ({ data, onClose }) => {
             '\\left': '',
             '\\right': '',
             '~': ' ',
+            '\\Rightarrow': '=>',
+            '\\&': '&',
+            '\\\\': ' ',
         };
 
         let processed = latex;
         Object.entries(symbolMap).forEach(([latexSymbol, replacement]) => {
-            processed = processed.replace(new RegExp(latexSymbol, 'g'), replacement);
+            processed = processed.replace(new RegExp(latexSymbol.replace(/\\/g, '\\\\'), 'g'), replacement);
         });
 
-        // Simplify fractions
         processed = processed.replace(/\\frac\{(.*?)\}\{(.*?)\}/g, '($1)/($2)');
 
-        // Simplify exponents
         processed = processed.replace(/\^{(.*?)}/g, ' pangkat ($1)');
 
         return processed.trim();
     };
 
-    // Convert text to HTML, handling LaTeX and attachments
     const convertComplexTextToHTML = (text, attachments = []) => {
         if (!text || typeof text !== 'string') return '<p></p>';
 
-        // Parse attachments
         const attachmentMap = {};
         attachments.forEach((attachment, index) => {
             const fileName = attachment.originalName || attachment.name || attachment.fileName;
             attachmentMap[`[attachment:${fileName}]`] = attachment;
         });
 
-        // Process aligned and gathered LaTeX blocks
         const alignedBlocks = [];
         const gatheredBlocks = [];
         let processedText = text;
 
-        // Handle aligned blocks
         processedText = processedText.replace(
-            /\\begin\{aligned\}([\s\S]*?)\\end\{aligned\}/g,
-            (_, content) => {
+            /\$\$\s*\\begin\{aligned\}([\s\S]*?)\\end\{aligned\}\s*\$\$/g,
+            (match, content) => {
                 const placeholder = `__ALIGNED_BLOCK_${alignedBlocks.length}__`;
-                alignedBlocks.push(content);
+                alignedBlocks.push(`\\begin{aligned}${content}\\end{aligned}`);
                 return placeholder;
             }
         );
 
-        // Handle gathered blocks
         processedText = processedText.replace(
-            /\\begin\{gathered\}([\s\S]*?)\\end\{gathered\}/g,
-            (_, content) => {
+            /\$\$\s*\\begin\{gathered\}([\s\S]*?)\\end\{gathered\}\s*\$\$/g,
+            (match, content) => {
                 const placeholder = `__GATHERED_BLOCK_${gatheredBlocks.length}__`;
-                gatheredBlocks.push(content);
+                gatheredBlocks.push(`\\begin{gathered}${content}\\end{gathered}`);
                 return placeholder;
             }
         );
 
-        // Process LaTeX formatting
         processedText = processLatexFormatting(processedText);
 
-        // Replace [\\n] with <br>
         processedText = processedText.replace(/\[\\n\]/g, '<br>');
 
-        // Split by LaTeX delimiters and attachments
         const parts = processedText.split(
             /(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$|\[attachment:[^\]]+\]|__ALIGNED_BLOCK_\d+__|__GATHERED_BLOCK_\d+__)/
         );
@@ -118,33 +110,49 @@ const QuestionPreview = ({ data, onClose }) => {
                             src="https://latex.codecogs.com/gif.latex?${encodedMath}" 
                             alt="${processedMath}" 
                             style="vertical-align: middle; max-height: 1.5em;"
+                            onerror="this.style.display='none';this.nextElementSibling.style.display='inline';"
                         />
+                        <span style="display: none; background: #f0f0f0; padding: 2px 4px; font-family: monospace; font-size: 0.8em;">${processedMath}</span>
                     </span>
                 `;
             } else if (part.match(/__ALIGNED_BLOCK_\d+__/)) {
                 const blockIndex = parseInt(part.match(/\d+/)[0]);
                 const blockContent = alignedBlocks[blockIndex];
-                const encodedBlock = encodeLatex(blockContent);
-                return `
-                    <p class="aligned-block">
-                        <img 
-                            src="https://latex.codecogs.com/gif.latex?${encodedBlock}" 
-                            alt="${processLatexMath(blockContent)}"
-                        />
-                    </p>
-                `;
+                if (blockContent) {
+                    const processedMath = processLatexMath(blockContent);
+                    const encodedBlock = encodeLatex(blockContent);
+                    return `
+                        <div class="aligned-block" style="text-align: center; margin: 15px 0;">
+                            <img 
+                                src="https://latex.codecogs.com/gif.latex?\\dpi{110}&space;${encodedBlock}" 
+                                alt="${processedMath}"
+                                style="max-width: 100%; height: auto;"
+                                onerror="this.style.display='none';this.nextElementSibling.style.display='block';"
+                            />
+                            <div style="display: none; background: #f0f0f0; padding: 10px; border: 1px solid #ddd; font-family: monospace; white-space: pre-wrap;">${blockContent}</div>
+                        </div>
+                    `;
+                }
+                return '';
             } else if (part.match(/__GATHERED_BLOCK_\d+__/)) {
                 const blockIndex = parseInt(part.match(/\d+/)[0]);
                 const blockContent = gatheredBlocks[blockIndex];
-                const encodedBlock = encodeLatex(blockContent);
-                return `
-                    <p class="gathered-block">
-                        <img 
-                            src="https://latex.codecogs.com/gif.latex?${encodedBlock}" 
-                            alt="${processLatexMath(blockContent)}"
-                        />
-                    </p>
-                `;
+                if (blockContent) {
+                    const processedMath = processLatexMath(blockContent);
+                    const encodedBlock = encodeLatex(blockContent);
+                    return `
+                        <div class="gathered-block" style="text-align: center; margin: 15px 0;">
+                            <img 
+                                src="https://latex.codecogs.com/gif.latex?\\dpi{110}&space;${encodedBlock}" 
+                                alt="${processedMath}"
+                                style="max-width: 100%; height: auto;"
+                                onerror="this.style.display='none';this.nextElementSibling.style.display='block';"
+                            />
+                            <div style="display: none; background: #f0f0f0; padding: 10px; border: 1px solid #ddd; font-family: monospace; white-space: pre-wrap;">${blockContent}</div>
+                        </div>
+                    `;
+                }
+                return '';
             } else if (part.match(/\[attachment:[^\]]+\]/)) {
                 const attachment = attachmentMap[part];
                 if (!attachment) return '';
@@ -174,7 +182,6 @@ const QuestionPreview = ({ data, onClose }) => {
         return `<div>${htmlParts.join('')}</div>`;
     };
 
-    // Render content with HTML and Math
     const renderContentWithAttachments = (text, attachments) => {
         if (!text) return null;
 
@@ -182,7 +189,6 @@ const QuestionPreview = ({ data, onClose }) => {
         return <div dangerouslySetInnerHTML={{ __html: htmlContent }} />;
     };
 
-    // Render question
     const renderQuestion = () => {
         const attachments = (() => {
             try {
@@ -278,7 +284,6 @@ const QuestionPreview = ({ data, onClose }) => {
         );
     };
 
-    // Render correct answer
     const renderCorrectAnswer = () => {
         if (data.question_type === 'MCQ') return null;
 
@@ -292,7 +297,6 @@ const QuestionPreview = ({ data, onClose }) => {
         );
     };
 
-    // Render solution
     const renderSolution = () => {
         if (!showSolution) return null;
 
@@ -407,7 +411,6 @@ const QuestionPreview = ({ data, onClose }) => {
     );
 };
 
-// CSS to ensure proper spacing and rendering
 const styles = `
     .question-preview-modal {
         max-width: 800px;
@@ -442,6 +445,9 @@ const styles = `
     .aligned-block, .gathered-block {
         text-align: center;
         margin: 15px 0;
+        padding: 10px;
+        background: #fafafa;
+        border-radius: 4px;
     }
 
     .attachment img {
@@ -469,9 +475,10 @@ const styles = `
     }
 `;
 
-// Inject styles into the document
-const styleSheet = document.createElement('style');
-styleSheet.innerText = styles;
-document.head.appendChild(styleSheet);
+if (typeof document !== 'undefined') {
+    const styleSheet = document.createElement('style');
+    styleSheet.innerText = styles;
+    document.head.appendChild(styleSheet);
+}
 
 export default QuestionPreview;
