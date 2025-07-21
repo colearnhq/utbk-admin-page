@@ -1297,7 +1297,7 @@ export const updateRevisionStatus = async (id, status, responseNotes = null, res
         };
 
         const updateQuestion = {
-            status: 'revised',
+            package_url_status: 'revised',
             public_url: fileData[0]?.url
         };
 
