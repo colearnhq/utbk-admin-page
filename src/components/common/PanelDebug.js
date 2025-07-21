@@ -10,7 +10,6 @@ const DebugPanel = () => {
         setLoading(true);
         const results = {};
 
-        // Test 1: Environment Variables
         console.log('=== Testing Environment Variables ===');
         results.envVars = {
             supabaseUrl: process.env.REACT_APP_SUPABASE_URL ? 'Present' : 'Missing',
@@ -18,7 +17,6 @@ const DebugPanel = () => {
             firebaseApiKey: process.env.REACT_APP_FIREBASE_API_KEY ? 'Present' : 'Missing'
         };
 
-        // Test 2: Supabase Connection
         console.log('=== Testing Supabase Connection ===');
         try {
             const connectionOk = await testConnection();
@@ -27,7 +25,6 @@ const DebugPanel = () => {
             results.connection = `Error: ${err.message}`;
         }
 
-        // Test 3: Table Access
         console.log('=== Testing Table Access ===');
         try {
             const { data, error } = await supabase.from('users').select('*').limit(1);
@@ -38,7 +35,6 @@ const DebugPanel = () => {
             results.tableAccess = `Error: ${err.message}`;
         }
 
-        // Test 4: Manual User Creation
         console.log('=== Testing Manual User Creation ===');
         try {
             const testEmail = `test-${Date.now()}@example.com`;
