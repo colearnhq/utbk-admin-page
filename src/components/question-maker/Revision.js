@@ -292,7 +292,7 @@ const Revision = () => {
                     <thead>
                         <tr>
                             <th>Package</th>
-                            <th>Question ID</th>
+                            <th>Vendor</th>
                             <th>Question Preview</th>
                             <th>Keywords</th>
                             <th>Previous Package</th>
@@ -308,7 +308,7 @@ const Revision = () => {
                         {revisions.map(revision => (
                             <tr key={revision.id}>
                                 <td>{revision.package?.title || 'N/A'}</td>
-                                <td>{revision?.question?.inhouse_id || revision.question_id || 'N/A'}</td>
+                                <td>{revision?.package?.vendor_name || 'N/A'}</td>
                                 <td className="question-preview-cell">
                                     {revision.question?.question ? (
                                         <button
