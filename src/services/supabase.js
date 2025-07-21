@@ -299,17 +299,10 @@ export const updateQuestionPackageStatus = async (packageId, status, feedback = 
 
 export const getPackagesWithProgress = async (userId = null) => {
     try {
-        // 1. Fetch pending packages with specific columns
-        let packagesQuery = supabase
+        let { data: packages, error: packagesError } = await supabase
             .from('question_packages')
-            .select('id, title, question_package_number, subject, vendor_name, amount_of_questions, status, public_url')
-            .in('status', ['pending', 'revised']);
-
-        if (userId) {
-            packagesQuery = packagesQuery.eq('uploaded_by', userId);
-        }
-
-        const { data: packages, error: packagesError } = await packagesQuery.order('created_at', { ascending: false });
+            .select('*')
+            .order('created_at', { ascending: false });
 
         if (packagesError) throw packagesError;
 
@@ -317,31 +310,9 @@ export const getPackagesWithProgress = async (userId = null) => {
             return [];
         }
 
-        // 2. Get all package IDs
-        const packageIds = packages.map(p => p.id);
-
-        // 3. Fetch all relevant questions in a single query
-        const { data: questions, error: questionsError } = await supabase
-            .from('questions')
-            .select('id, package_id, status')
-            .in('package_id', packageIds);
-
-        if (questionsError) throw questionsError;
-
-        // 4. Create a map for quick question lookup
-        const questionsByPackage = questions.reduce((acc, q) => {
-            if (!acc[q.package_id]) {
-                acc[q.package_id] = [];
-            }
-            acc[q.package_id].push(q);
-            return acc;
-        }, {});
-
-        // 5. Combine packages with their progress
         const packagesWithProgress = packages.map(pkg => {
-            const packageQuestions = questionsByPackage[pkg.id] || [];
-            const createdQuestions = packageQuestions.length;
-            const revisedQuestions = packageQuestions.filter(q => q.status === 'revised').length;
+            const createdQuestions = pkg.question_created;
+            const revisedQuestions = pkg.question_revised;
             const totalQuestions = pkg.amount_of_questions;
 
             return {
@@ -894,7 +865,7 @@ export const getRevisions = async (filters = {}) => {
             .from('revisions')
             .select(`
                 *,
-                package:question_packages(id, title, subject, public_url),
+                package:question_packages(id, title, subject, public_url, vendor_name),
                 question:questions(
                     id,
                     inhouse_id,
@@ -2104,7 +2075,7 @@ export const approveQuestionMakerRevision = async (revisionId, responseNotes, re
 
         if (responseFiles[0].url) {
             const updatePackageUrl = {
-                status: 'revised',
+                package_url_status: 'edited',
                 public_url: responseFiles[0].url
             };
 
@@ -2128,7 +2099,6 @@ export const approveQuestionMakerRevision = async (revisionId, responseNotes, re
     }
 };
 
-// Function to handle Data Entry recreate question submission
 export const submitRecreatedQuestion = async (questionId, questionData, submittedBy) => {
     try {
         // Update the existing question without creating new ID

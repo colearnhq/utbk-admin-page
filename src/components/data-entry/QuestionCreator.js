@@ -26,8 +26,9 @@ const QuestionCreator = ({ package: pkg, onBack, onQuestionCreated }) => {
 
             const subjectAbbrev = getSubjectAbbreviation(pkg.subject);
             const packageNumber = String(pkg.question_package_number).padStart(2, '0');
+            const vendorAbbrev = createIdForVendor(pkg.vendor_name);
             const sequenceNumber = await getNextSequenceNumber(pkg.id);
-            const inhouseId = `${subjectAbbrev}-${packageNumber}-${sequenceNumber}`;
+            const inhouseId = `${vendorAbbrev}-${subjectAbbrev}-${packageNumber}-${sequenceNumber}`;
 
             const questionData = {
                 ...formData,
@@ -45,6 +46,16 @@ const QuestionCreator = ({ package: pkg, onBack, onQuestionCreated }) => {
             console.error('Error creating question:', error);
             alert('Failed to create question. Please try again.');
         }
+    };
+
+    const createIdForVendor = (vendor) => {
+        const vendors = {
+            'CoLearn': 'CLN',
+            'Gummu': 'GMM',
+            'Akademi Prestasi': 'AKP'
+        }
+
+        return vendors[vendor] || 'OTH';
     };
 
     const getSubjectAbbreviation = (subject) => {
