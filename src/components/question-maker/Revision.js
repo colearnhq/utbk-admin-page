@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { supabase, getRevisions, updateRevisionStatus, updateQuestion, approveQuestionMakerRevision } from '../../services/supabase';
+import { supabase, getRevisions, updateRevisionStatus, updateQuestion, approveQuestionMakerRevision, getVendors } from '../../services/supabase';
 import { uploadFileToSupabase } from '../../services/supabase-storage';
+import Pagination from '../qc/Pagination';
 import QuestionPreview from '../data-entry/QuestionPreview';
 import '../../styles/pages/question-maker.css';
 
@@ -23,6 +24,30 @@ const Revision = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadedFiles, setUploadedFiles] = useState([]);
+    const [totalInquiries, setTotalInquiries] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(5);
+
+    const [filters, setFilters] = useState({
+        vendor: '',
+    });
+
+    const [filterOptions, setFilterOptions] = useState({
+        vendors: [],
+    });
+
+    useEffect(() => {
+        const fetchFilterOptions = async () => {
+            try {
+                const vendorsData = await getVendors();
+                setFilterOptions(prev => ({ ...prev, vendors: vendorsData }));
+            } catch (error) {
+                console.error('Failed to fetch filter options:', error);
+            }
+        };
+
+        fetchFilterOptions();
+    }, []);
 
     useEffect(() => {
         const fetchRevisions = async () => {
@@ -33,28 +58,37 @@ const Revision = () => {
 
             try {
                 let fetchedRevisions;
+                const baseFilters = {
+                    target_role: 'question_maker',
+                };
+
+                if (filters.vendor) {
+                    baseFilters.vendor = filters.vendor;
+                }
+
                 if (activeTab === 'pending') {
                     fetchedRevisions = await getRevisions({
-                        target_role: 'question_maker',
+                        ...baseFilters,
                         status: 'pending'
                     });
                 } else {
                     const approvedRevisions = await getRevisions({
-                        target_role: 'question_maker',
+                        ...baseFilters,
                         status: 'approved'
                     });
                     const rejectedRevisions = await getRevisions({
-                        target_role: 'question_maker',
+                        ...baseFilters,
                         status: 'rejected'
                     });
                     const handoverRevisions = await getRevisions({
-                        target_role: 'question_maker',
+                        ...baseFilters,
                         status: 'send to data-entry'
                     });
                     fetchedRevisions = [...handoverRevisions, ...approvedRevisions, ...rejectedRevisions]
                         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                 }
                 setRevisions(fetchedRevisions);
+                setTotalInquiries(fetchedRevisions.length)
             } catch (err) {
                 setError(`Error fetching revisions: ${err.message}`);
                 console.error('Fetch error:', err);
@@ -64,7 +98,19 @@ const Revision = () => {
         };
 
         fetchRevisions();
-    }, [userData, activeTab]);
+    }, [userData, activeTab, filters]);
+
+    const totalPages = Math.ceil(totalInquiries / itemsPerPage);
+
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+    };
+
+    const getCurrentPageData = () => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return revisions.slice(startIndex, endIndex);
+    };
 
     const handleViewAttachment = (attachment) => {
         setShowAttachment(attachment);
@@ -261,6 +307,19 @@ const Revision = () => {
         );
     };
 
+    const handleFilterChange = (filterType, value) => {
+        setFilters(prev => ({
+            ...prev,
+            [filterType]: value
+        }));
+    };
+
+    const clearFilters = () => {
+        setFilters({
+            vendor: '',
+        });
+    };
+
     return (
         <div className="revision-container">
             <div className="revision-header">
@@ -282,6 +341,39 @@ const Revision = () => {
                     Revision History
                 </button>
             </div>
+
+            <div className='filters-container'>
+                <div className="filter-row">
+                    <div className="filter-group">
+                        <label>Vendor:</label>
+                        <select
+                            value={filters.vendor}
+                            onChange={(e) => handleFilterChange('vendor', e.target.value)}
+                        >
+                            <option value="">All Vendors</option>
+                            {filterOptions.vendors.map(vendor => (
+                                <option key={vendor.id} value={vendor.id}>
+                                    {vendor.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <button className="clear-filters-btn" onClick={clearFilters}>
+                        Clear Filters
+                    </button>
+                </div>
+            </div>
+
+            {totalPages > 1 && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    totalItems={totalInquiries}
+                    itemsPerPage={itemsPerPage}
+                />
+            )}
 
             {error && <div className="error-message">{error}</div>}
 
@@ -305,7 +397,7 @@ const Revision = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {revisions.map(revision => (
+                        {getCurrentPageData().map(revision => (
                             <tr key={revision.id}>
                                 <td>{revision.package?.title || 'N/A'}</td>
                                 <td>{revision?.package?.vendor_name || 'N/A'}</td>

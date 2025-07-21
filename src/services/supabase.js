@@ -682,7 +682,6 @@ export const getQuestions = async (filters = {}) => {
         }
 
         const { data, error } = await query;
-
         if (error) throw error;
         return data;
     } catch (error) {
@@ -889,6 +888,22 @@ export const getRevisions = async (filters = {}) => {
             `)
             .order('created_at', { ascending: false });
 
+        if (filters.vendor) {
+            const { data: packages, error: pkgError } = await supabase
+                .from('question_packages')
+                .select('id')
+                .eq('vendor_name', filters.vendor);
+
+            if (pkgError) throw pkgError;
+
+            const packageIds = packages.map(p => p.id);
+            if (packageIds.length > 0) {
+                query = query.in('package_id', packageIds);
+            } else {
+                return []; // No packages for this vendor, so no revisions
+            }
+        }
+
         if (filters.status) {
             query = query.eq('status', filters.status);
         }
@@ -918,6 +933,22 @@ export const getRevisions = async (filters = {}) => {
         return data;
     } catch (error) {
         console.error('Error in getRevisions function:', error);
+        throw error;
+    }
+};
+
+export const getVendors = async () => {
+    try {
+        const { data, error } = await supabase
+            .from('question_packages')
+            .select('vendor_name');
+
+        if (error) throw error;
+
+        const vendors = [...new Set(data.map(item => item.vendor_name).filter(Boolean))];
+        return vendors.map(vendor => ({ id: vendor, name: vendor }));
+    } catch (error) {
+        console.error('Error fetching vendors:', error);
         throw error;
     }
 };
