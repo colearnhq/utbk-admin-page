@@ -1,15 +1,38 @@
-import { useState, useEffect } from 'react';
-import { getQuestions, getSubjects, updateQuestion } from '../../services/supabase';
+import { useState, useEffect, useCallback } from 'react';
+import {
+    getSubjects,
+    updateQuestion,
+    getQuestionsWithFilters,
+    getQuestionsStats,
+    getQuestionPICs
+} from '../../services/supabase';
 import LoadingSpinner from '../common/LoadingSpinner';
 import QuestionPreview from './QuestionPreview';
 import QuestionEditor from './QuestionEditor';
-import useQuestionEditor from '../../hooks/useQuestionEditor';
 import { useAuth } from '../../hooks/useAuth';
 import '../../styles/pages/revision-tab.css';
+
+// Debounce hook untuk search
+const useDebounce = (value, delay) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+
+    return debouncedValue;
+};
 
 const QuestionsTab = () => {
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [statsLoading, setStatsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showPreview, setShowPreview] = useState(false);
     const [previewData, setPreviewData] = useState(null);
@@ -27,10 +50,10 @@ const QuestionsTab = () => {
         pic: 'all'
     });
     const [subjects, setSubjects] = useState([]);
-    const [allQuestions, setAllQuestions] = useState([]);
+    const [pics, setPICs] = useState([]);
     const [pagination, setPagination] = useState({
         currentPage: 1,
-        itemsPerPage: 10,
+        itemsPerPage: 5,
         totalItems: 0,
         totalPages: 0
     });
@@ -39,14 +62,85 @@ const QuestionsTab = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const { userData } = useAuth();
 
+    const debouncedSearchQuery = useDebounce(searchQuery, 500);
+
+    // Fetch questions with current filters and pagination
+    const fetchQuestions = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const result = await getQuestionsWithFilters(filters, {
+                page: pagination.currentPage,
+                limit: pagination.itemsPerPage,
+                search: debouncedSearchQuery
+            });
+
+            setQuestions(result.questions);
+            setPagination(prev => ({
+                ...prev,
+                totalItems: result.total,
+                totalPages: result.totalPages
+            }));
+
+        } catch (err) {
+            setError('Failed to fetch questions');
+            console.error('Error fetching questions:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, [filters, pagination.currentPage, pagination.itemsPerPage, debouncedSearchQuery]);
+
+    // Fetch stats separately
+    const fetchStats = useCallback(async () => {
+        try {
+            setStatsLoading(true);
+
+            const statsData = await getQuestionsStats({
+                subject: filters.subject,
+                questionType: filters.questionType,
+                pic: filters.pic,
+                search: debouncedSearchQuery
+            });
+
+            setStats(statsData);
+        } catch (err) {
+            console.error('Error fetching stats:', err);
+        } finally {
+            setStatsLoading(false);
+        }
+    }, [filters.subject, filters.questionType, filters.pic, debouncedSearchQuery]);
+
+    // Fetch initial data
     useEffect(() => {
+        const fetchInitialData = async () => {
+            try {
+                const [subjectsData, picsData] = await Promise.all([
+                    getSubjects(),
+                    getQuestionPICs()
+                ]);
+
+                setSubjects(subjectsData);
+                setPICs(picsData);
+            } catch (error) {
+                console.error('Error fetching initial data:', error);
+            }
+        };
+
         fetchInitialData();
     }, []);
 
+    // Fetch questions when dependencies change
     useEffect(() => {
         fetchQuestions();
-    }, []);
+    }, [fetchQuestions]);
 
+    // Fetch stats when dependencies change
+    useEffect(() => {
+        fetchStats();
+    }, [fetchStats]);
+
+    // Handle escape key for editor
     useEffect(() => {
         const handleEscKey = (e) => {
             if (e.key === 'Escape' && showEditor) {
@@ -65,146 +159,16 @@ const QuestionsTab = () => {
         };
     }, [showEditor]);
 
-    useEffect(() => {
-        applyFiltersAndSearch();
-    }, [allQuestions, filters, searchQuery]);
-
     const getJakartaISOString = () => {
         const now = new Date();
         const jakartaOffset = 7 * 60;
         const jakartaTime = new Date(now.getTime() + (jakartaOffset * 60 * 1000));
-
         return jakartaTime.toISOString().replace(/Z$/, '+07:00');
-    };
-
-    const applyFiltersAndSearch = () => {
-        let filteredData = allQuestions;
-
-        if (filters.status !== 'all') {
-            const statusValue = filters.status === 'on_review' ? 'active' : filters.status;
-            filteredData = filteredData.filter(q => q.status === statusValue);
-        }
-
-        if (filters.subject !== 'all') {
-            filteredData = filteredData.filter(q => q.subject?.id === filters.subject);
-        }
-
-        if (filters.questionType !== 'all') {
-            filteredData = filteredData.filter(q => q.question_type === filters.questionType);
-        }
-
-        if (filters.pic !== 'all') {
-            filteredData = filteredData.filter(q => q.created_by_user?.name === filters.pic);
-        }
-
-        if (searchQuery.trim()) {
-            filteredData = filteredData.filter(question =>
-                question.package?.title?.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-        }
-
-        setQuestions(filteredData);
-
-        const totalQuestions = filteredData.length;
-        const onReviewCount = filteredData.filter(q => q.status === 'active').length;
-        const revisedCount = filteredData.filter(q => q.status === 'revised').length;
-        const editedCount = filteredData.filter(q => q.status === 'edited').length;
-        const qcPassedCount = filteredData.filter(q => q.status === 'qc_passed').length;
-
-        setStats({
-            total: totalQuestions,
-            on_review: onReviewCount,
-            revised: revisedCount,
-            edited: editedCount,
-            qc_passed: qcPassedCount
-        });
-
-        const paginationData = calculatePagination(
-            filteredData.length,
-            pagination.currentPage,
-            pagination.itemsPerPage
-        );
-        setPagination(paginationData);
-    };
-
-    const fetchInitialData = async () => {
-        try {
-            const subjectsData = await getSubjects();
-            setSubjects(subjectsData);
-        } catch (error) {
-            console.error('Error fetching initial data:', error);
-        }
-    };
-
-    const fetchQuestions = async () => {
-        try {
-            setLoading(true);
-
-            const allQuestionsData = await getQuestions();
-            setAllQuestions(allQuestionsData);
-
-            const filteredQuestions = filters.pic === 'all'
-                ? allQuestionsData
-                : allQuestionsData.filter(q => q.created_by_user?.name === filters.pic);
-
-            setQuestions(filteredQuestions);
-
-            const totalQuestions = filteredQuestions.length;
-            const onReviewCount = filteredQuestions.filter(q => q.status === 'active').length;
-            const revisedCount = filteredQuestions.filter(q => q.status === 'revised').length;
-            const editedCount = filteredQuestions.filter(q => q.status === 'edited').length;
-            const qcPassedCount = filteredQuestions.filter(q => q.status === 'qc_passed').length;
-
-            const paginationData = calculatePagination(
-                filteredQuestions.length,
-                pagination.currentPage,
-                pagination.itemsPerPage
-            );
-
-            setPagination(paginationData);
-
-            setStats({
-                total: totalQuestions,
-                on_review: onReviewCount,
-                revised: revisedCount,
-                edited: editedCount,
-                qc_passed: qcPassedCount
-            });
-        } catch (err) {
-            setError('Failed to fetch questions');
-            console.error('Error fetching questions:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-
-    const getPICs = () => {
-        const pics = new Set();
-        allQuestions.forEach(question => {
-            if (question?.created_by_user?.name) {
-                pics.add(question.created_by_user.name);
-            }
-        });
-        return Array.from(pics).sort();
-    };
-
-    const calculatePagination = (totalItems, currentPage = 1, itemsPerPage = 10) => {
-
-        const totalPages = Math.ceil(totalItems / itemsPerPage);
-
-        return {
-            currentPage,
-            itemsPerPage,
-            totalItems,
-            totalPages,
-            startIndex: (currentPage - 1) * itemsPerPage,
-            endIndex: Math.min(currentPage * itemsPerPage, totalItems)
-        };
     };
 
     const handleSearchChange = (e) => {
         setSearchQuery(e.target.value);
+        // Reset to first page when searching
         setPagination(prev => ({
             ...prev,
             currentPage: 1
@@ -216,26 +180,33 @@ const QuestionsTab = () => {
             setPagination(prev => ({
                 ...prev,
                 currentPage: newPage
-            }))
+            }));
         }
     };
 
-    const handleItemsPerPageChange = (newItemsPerPage,) => {
+    const handleItemsPerPageChange = (newItemsPerPage) => {
         setPagination(prev => ({
             ...prev,
             itemsPerPage: newItemsPerPage,
             currentPage: 1
-        }))
+        }));
     };
 
-    const getPaginatedQuestions = () => {
-        const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
-        const endIndex = startIndex + pagination.itemsPerPage;
-        return questions.slice(startIndex, endIndex)
-    }
+    const handleFilterChange = (filterType, value) => {
+        setFilters(prev => ({
+            ...prev,
+            [filterType]: value
+        }));
+
+        // Reset to first page when filters change
+        setPagination(prev => ({
+            ...prev,
+            currentPage: 1
+        }));
+    };
 
     const PaginationComponent = () => {
-        const { currentPage, totalPages, totalItems, itemsPerPage, startIndex, endIndex } = pagination;
+        const { currentPage, totalPages, totalItems, itemsPerPage } = pagination;
 
         const getPageNumbers = () => {
             const pages = [];
@@ -264,6 +235,9 @@ const QuestionsTab = () => {
         };
 
         if (totalPages <= 1) return null;
+
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
 
         return (
             <div className="pagination-container">
@@ -341,18 +315,6 @@ const QuestionsTab = () => {
         setShowPreview(true);
     };
 
-    const handleFilterChange = (filterType, value) => {
-        setFilters(prev => ({
-            ...prev,
-            [filterType]: value
-        }));
-
-        setPagination(prev => ({
-            ...prev,
-            currentPage: 1
-        }));
-    };
-
     const getStatusColor = (status) => {
         switch (status) {
             case 'active': return 'yellow';
@@ -372,10 +334,6 @@ const QuestionsTab = () => {
         }
     };
 
-    const filteredQuestions = questions;
-
-    if (loading) return <LoadingSpinner message="Loading questions..." />;
-    if (error) return <div className="error-message">{error}</div>;
     const handleEditQuestion = (question) => {
         setEditingQuestion({
             ...question,
@@ -386,6 +344,7 @@ const QuestionsTab = () => {
         });
         setShowEditor(true);
     };
+
     const handleSaveEditedQuestion = async (questionData) => {
         try {
             setLoading(true);
@@ -396,11 +355,12 @@ const QuestionsTab = () => {
                 is_edited: true,
                 edited_at: getJakartaISOString(),
                 edited_by: userData.id
-            }
+            };
 
             await updateQuestion(editingQuestion.id, updatedQuestion);
 
-            await fetchQuestions();
+            // Refresh both questions and stats
+            await Promise.all([fetchQuestions(), fetchStats()]);
 
             setShowEditor(false);
             setEditingQuestion(null);
@@ -419,14 +379,22 @@ const QuestionsTab = () => {
     };
 
     const getQuestionStatus = (status) => {
-        const statutes = {
+        const statuses = {
             "active": "👀 On Review",
             "revised": "⚠ Revised",
             "edited": "✏️ Edited",
             "qc_passed": "✅ QC Passed"
-        }
+        };
 
-        return statutes[status];
+        return statuses[status];
+    };
+
+    if (loading && questions.length === 0) {
+        return <LoadingSpinner message="Loading questions..." />;
+    }
+
+    if (error && questions.length === 0) {
+        return <div className="error-message">{error}</div>;
     }
 
     return (
@@ -438,23 +406,33 @@ const QuestionsTab = () => {
 
             <div className="questions-stats-data-entry">
                 <div className="stat-card">
-                    <div className="stat-number">{stats.total}</div>
+                    <div className="stat-number">
+                        {statsLoading ? '...' : stats.total}
+                    </div>
                     <div className="stat-label">Total Questions</div>
                 </div>
                 <div className="stat-card on_review">
-                    <div className="stat-number">{stats.on_review}</div>
+                    <div className="stat-number">
+                        {statsLoading ? '...' : stats.on_review}
+                    </div>
                     <div className="stat-label">On Review</div>
                 </div>
                 <div className="stat-card revised">
-                    <div className="stat-number">{stats.revised}</div>
+                    <div className="stat-number">
+                        {statsLoading ? '...' : stats.revised}
+                    </div>
                     <div className="stat-label">Revised</div>
                 </div>
                 <div className="stat-card edited">
-                    <div className="stat-number">{stats.edited}</div>
+                    <div className="stat-number">
+                        {statsLoading ? '...' : stats.edited}
+                    </div>
                     <div className="stat-label">Edited</div>
                 </div>
                 <div className="stat-card qc_passed">
-                    <div className="stat-number">{stats.qc_passed}</div>
+                    <div className="stat-number">
+                        {statsLoading ? '...' : stats.qc_passed}
+                    </div>
                     <div className="stat-label">QC Passed</div>
                 </div>
             </div>
@@ -521,7 +499,7 @@ const QuestionsTab = () => {
                         onChange={(e) => handleFilterChange('pic', e.target.value)}
                     >
                         <option value="all">All PICs</option>
-                        {getPICs().map((pic, i) => (
+                        {pics.map((pic, i) => (
                             <option key={i} value={pic}>
                                 {pic}
                             </option>
@@ -530,7 +508,13 @@ const QuestionsTab = () => {
                 </div>
             </div>
 
-            {questions.length === 0 ? (
+            {loading && (
+                <div className="loading-overlay">
+                    <LoadingSpinner message="Loading questions..." />
+                </div>
+            )}
+
+            {questions.length === 0 && !loading ? (
                 <div className="empty-state">
                     <p>No questions found with the selected filters.</p>
                 </div>
@@ -538,7 +522,7 @@ const QuestionsTab = () => {
                 <>
                     <PaginationComponent />
                     <div className="questions-list">
-                        {getPaginatedQuestions().map((question) => (
+                        {questions.map((question) => (
                             <div key={question.id} className="question-card">
                                 <div className="question-card-header">
                                     <div className="question-meta">
@@ -564,7 +548,6 @@ const QuestionsTab = () => {
                                             {new Date(question.created_at).toLocaleDateString()}
                                         </div>
                                     </div>
-
                                 </div>
 
                                 <div className="question-content">
@@ -583,7 +566,7 @@ const QuestionsTab = () => {
                                     </div>
 
                                     <div className="question-info">
-                                        <span>Created by: {question.created_by_user?.name || 'Unknown'}</span>
+                                        <span>Created by: {question.created_by?.name || 'Unknown'}</span>
                                         {question.package?.title && (
                                             <span> | Package: {question.package.title}</span>
                                         )}

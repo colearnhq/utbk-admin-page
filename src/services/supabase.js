@@ -645,7 +645,120 @@ export const createQuestion = async (questionData) => {
     }
 };
 
-export const getQuestions = async (filters = {}) => {
+// Tambahkan fungsi untuk menghitung questions berdasarkan status QC
+export const getQuestionsCountByQCStatus = async (filters = {}) => {
+    try {
+        // Query untuk available questions (pending_review)
+        let availableQuery = supabase
+            .from('questions')
+            .select('*', { count: 'exact', head: true })
+            .eq('qc_status', 'pending_review');
+
+        // Query untuk under review questions
+        let underReviewQuery = supabase
+            .from('questions')
+            .select('*', { count: 'exact', head: true })
+            .eq('qc_status', 'under_qc_review');
+
+        // Apply additional filters if provided
+        if (filters.subject_id) {
+            availableQuery = availableQuery.eq('subject_id', filters.subject_id);
+            underReviewQuery = underReviewQuery.eq('subject_id', filters.subject_id);
+        }
+
+        if (filters.chapter_id) {
+            availableQuery = availableQuery.eq('chapter_id', filters.chapter_id);
+            underReviewQuery = underReviewQuery.eq('chapter_id', filters.chapter_id);
+        }
+
+        if (filters.topic_id) {
+            availableQuery = availableQuery.eq('topic_id', filters.topic_id);
+            underReviewQuery = underReviewQuery.eq('topic_id', filters.topic_id);
+        }
+
+        if (filters.qc_reviewer_id) {
+            // Only apply to under review (available questions don't have reviewer yet)
+            underReviewQuery = underReviewQuery.eq('qc_reviewer_id', filters.qc_reviewer_id);
+        }
+
+        if (filters.search) {
+            availableQuery = availableQuery.ilike('inhouse_id', `%${filters.search}%`);
+            underReviewQuery = underReviewQuery.ilike('inhouse_id', `%${filters.search}%`);
+        }
+
+        // Execute both queries in parallel
+        const [availableResult, underReviewResult] = await Promise.all([
+            availableQuery,
+            underReviewQuery
+        ]);
+
+        if (availableResult.error) throw availableResult.error;
+        if (underReviewResult.error) throw underReviewResult.error;
+
+        return {
+            available: availableResult.count || 0,
+            under_review: underReviewResult.count || 0
+        };
+
+    } catch (error) {
+        console.error('Error counting questions by QC status:', error);
+        throw error;
+    }
+};
+
+// Fungsi untuk menghitung berdasarkan status tertentu saja (lebih efisien untuk single status)
+export const getQuestionsCountByStatus = async (qcStatus, filters = {}) => {
+    try {
+        let query = supabase
+            .from('questions')
+            .select('*', { count: 'exact', head: true })
+            .eq('qc_status', qcStatus);
+
+        // Apply filters
+        if (filters.subject_id) {
+            query = query.eq('subject_id', filters.subject_id);
+        }
+
+        if (filters.chapter_id) {
+            query = query.eq('chapter_id', filters.chapter_id);
+        }
+
+        if (filters.topic_id) {
+            query = query.eq('topic_id', filters.topic_id);
+        }
+
+        if (filters.qc_reviewer_id && qcStatus === 'under_qc_review') {
+            query = query.eq('qc_reviewer_id', filters.qc_reviewer_id);
+        }
+
+        if (filters.search) {
+            query = query.ilike('inhouse_id', `%${filters.search}%`);
+        }
+
+        const { count, error } = await query;
+
+        if (error) throw error;
+
+        return count || 0;
+
+    } catch (error) {
+        console.error(`Error counting questions with status ${qcStatus}:`, error);
+        throw error;
+    }
+};
+
+// Tambahkan fungsi baru untuk mendapatkan questions dengan pagination dan filter
+export const getQuestionsWithFilters = async (filters = {}, options = {}) => {
+    const {
+        page = 1,
+        limit = 10,
+        status = 'all',
+        subject = 'all',
+        questionType = 'all',
+        pic = 'all',
+        search = ''
+    } = { ...filters, ...options };
+
     try {
         let query = supabase
             .from('questions')
@@ -654,38 +767,129 @@ export const getQuestions = async (filters = {}) => {
                 subject:subjects(id, name),
                 chapter:chapters(id, name),
                 topic:topics(id, name),
-                package:question_packages(id, title, public_url),
                 concept_title:concept_titles(id, name),
-                created_by_user:users!questions_created_by_fkey(id, name),
-                revised_by_user:users!questions_revised_by_fkey(id, name)
-            `)
+                created_by:users!questions_created_by_fkey(id, name),
+                package:question_packages(id, title, public_url)
+            `, { count: 'exact' })
             .order('created_at', { ascending: false });
 
-        if (filters.status) {
-            query = query.eq('status', filters.status);
-        }
-        if (filters.subject_id) {
-            query = query.eq('subject_id', filters.subject_id);
-        }
-        if (filters.question_type) {
-            query = query.eq('question_type', filters.question_type);
-        }
-        if (filters.created_by_user) {
-            query = query.eq('created_by', filters.created_by_user);
-        }
-        if (filters.package_id) {
-            query = query.eq('package_id', filters.package_id);
+        // Apply filters
+        if (status !== 'all') {
+            const statusValue = status === 'on_review' ? 'active' : status;
+            query = query.eq('status', statusValue);
         }
 
-        if (filters.qc_status) {
-            query = query.eq('qc_status', filters.qc_status);
+        if (subject !== 'all') {
+            query = query.eq('subject_id', subject);
         }
 
-        const { data, error } = await query;
+        if (questionType !== 'all') {
+            query = query.eq('question_type', questionType);
+        }
+
+        if (pic !== 'all') {
+            query = query.eq('users.name', pic);
+        }
+
+        if (search.trim()) {
+            query = query.ilike('packages.title', `%${search}%`);
+        }
+
+        // Apply pagination
+        const startIndex = (page - 1) * limit;
+        query = query.range(startIndex, startIndex + limit - 1);
+
+        const { data, error, count } = await query;
+
         if (error) throw error;
-        return data;
+
+        return {
+            questions: data || [],
+            total: count || 0,
+            page,
+            limit,
+            totalPages: Math.ceil((count || 0) / limit)
+        };
+
     } catch (error) {
-        console.error('Error fetching questions:', error);
+        console.error('Error fetching questions with filters:', error);
+        throw error;
+    }
+};
+
+
+export const getQuestionsStats = async (filters = {}) => {
+    const {
+        subject = 'all',
+        questionType = 'all',
+        pic = 'all',
+        search = ''
+    } = filters;
+
+    try {
+        let query = supabase
+            .from('questions')
+            .select('status, created_by:users!questions_created_by_fkey(name), package:question_packages(title)', { count: 'exact' });
+
+        if (subject !== 'all') {
+            query = query.eq('subject_id', subject);
+        }
+
+        if (questionType !== 'all') {
+            query = query.eq('question_type', questionType);
+        }
+
+        if (pic !== 'all') {
+            query = query.eq('users.name', pic);
+        }
+
+        if (search.trim()) {
+            query = query.ilike('packages.title', `%${search}%`);
+        }
+
+        const { data, error, count } = await query;
+
+        if (error) throw error;
+
+        const total = count || 0;
+        const on_review = data?.filter(q => q.status === 'active').length || 0;
+        const revised = data?.filter(q => q.status === 'revised').length || 0;
+        const edited = data?.filter(q => q.status === 'edited').length || 0;
+        const qc_passed = data?.filter(q => q.status === 'qc_passed').length || 0;
+
+        return {
+            total,
+            on_review,
+            revised,
+            edited,
+            qc_passed
+        };
+
+    } catch (error) {
+        console.error('Error fetching questions stats:', error);
+        throw error;
+    }
+};
+
+// Fungsi untuk mendapatkan daftar PICs (untuk dropdown filter)
+export const getQuestionPICs = async () => {
+    try {
+        const { data, error } = await supabase
+            .from('questions')
+            .select('created_by:users!questions_created_by_fkey(name)')
+            .not('created_by', 'is', null);
+
+        if (error) throw error;
+
+        // Extract unique PICs
+        const pics = [...new Set(
+            data?.map(q => q.created_by?.name).filter(Boolean) || []
+        )].sort();
+
+        return pics;
+
+    } catch (error) {
+        console.error('Error fetching PICs:', error);
         throw error;
     }
 };

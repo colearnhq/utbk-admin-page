@@ -115,12 +115,12 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
 
   const handleQuestionClick = async (question) => {
     try {
-      if (question.qc_status === 'under_qc_review' && question.qc_reviewer_id !== userData.id) {
+      if ((question.qc_status === 'under_qc_review' || question.qc_status === 'under_review') && question.qc_reviewer_id !== userData.id) {
         alert(`This question is currently being reviewed by ${question.qc_reviewer_name}`);
         return;
       }
 
-      if (question.qc_status === 'under_qc_review' && question.qc_reviewer_id === userData.id) {
+      if ((question.qc_status === 'under_qc_review' || question.qc_status === 'under_review') && question.qc_reviewer_id === userData.id) {
         setSelectedQuestion(question);
         setShowModal(true);
         return;
