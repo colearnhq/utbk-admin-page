@@ -768,7 +768,7 @@ export const getQuestionsWithFilters = async (filters = {}, options = {}) => {
                 topic:topics(id, name),
                 concept_title:concept_titles(id, name),
                 created_by:users!questions_created_by_fkey(id, name),
-                packages:question_packages(id, title, public_url)
+                package:question_packages(id, title, public_url)
             `, { count: 'exact' })
             .order('created_at', { ascending: false });
 
@@ -786,11 +786,36 @@ export const getQuestionsWithFilters = async (filters = {}, options = {}) => {
         }
 
         if (pic !== 'all') {
-            query = query.eq('users.name', pic);
+            const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('id')
+                .is('is_deleted', null)
+                .eq('name', pic)
+                .single();
+
+            if (!userError && userData) {
+                query = query.eq('created_by', userData.id);
+            }
         }
 
         if (search.trim()) {
-            query = query.ilike('packages.title', `%${search}%`);
+            const { data: packageData, error: packageError } = await supabase
+                .from('question_packages')
+                .select('id')
+                .ilike('title', `%${search.trim()}%`);
+
+            if (!packageError && packageData && packageData.length > 0) {
+                const packageIds = packageData.map(pkg => pkg.id);
+                query = query.in('package_id', packageIds);
+            } else {
+                return {
+                    questions: [],
+                    total: 0,
+                    page,
+                    limit,
+                    totalPages: 0
+                };
+            }
         }
 
         const startIndex = (page - 1) * limit;
@@ -837,11 +862,28 @@ export const getQuestionsStats = async (filters = {}) => {
         }
 
         if (pic !== 'all') {
-            query = query.eq('users.name', pic);
+            const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('id')
+                .is('is_deleted', null)
+                .eq('name', pic)
+                .single();
+
+            if (!userError && userData) {
+                query = query.eq('created_by', userData.id)
+            }
         }
 
         if (search.trim()) {
-            query = query.ilike('packages.title', `%${search}%`);
+            const { data: packageData, error: packageError } = await supabase
+                .from('question_packages')
+                .select('id')
+                .ilike('title', `%${search.trim()}%`)
+
+            if (!packageError && packageData) {
+                const packageIds = packageData.map(pkg => pkg.id);
+                query = query.in('package_id', packageIds);
+            }
         }
 
         const { data, error, count } = await query;
@@ -868,17 +910,21 @@ export const getQuestionsStats = async (filters = {}) => {
     }
 };
 
-// Fungsi untuk mendapatkan daftar PICs (untuk dropdown filter)
 export const getQuestionPICs = async () => {
     try {
         const { data, error } = await supabase
             .from('questions')
-            .select('created_by:users!questions_created_by_fkey(name)')
+            .select(`
+                created_by:users!questions_created_by_fkey(
+                    id,
+                    name
+                )
+            `)
             .not('created_by', 'is', null);
 
         if (error) throw error;
 
-        // Extract unique PICs
+        // Extract unique PICs and sort them
         const pics = [...new Set(
             data?.map(q => q.created_by?.name).filter(Boolean) || []
         )].sort();
@@ -1578,8 +1624,10 @@ export const updateRevisionStatus = async (id, status, responseNotes = null, res
 };
 
 
-export const getRevisionsByUser = async (userId, filters = {}) => {
+export const getRevisionsByUser = async (userId, filters = {}, options = {}) => {
     try {
+        const { from, to } = options;
+
         let query = supabase
             .from('revisions')
             .select(`
@@ -1622,7 +1670,7 @@ export const getRevisionsByUser = async (userId, filters = {}) => {
                 package:question_packages(id, title, subject),
                 requested_by_user:users!revision_requests_requested_by_fkey(id, name, email),
                 responded_by_user:users!revision_requests_responded_by_fkey(id, name, email)
-            `)
+            `, { count: 'exact' })
             .order('created_at', { ascending: false });
 
         if (filters.status) {
@@ -1632,18 +1680,24 @@ export const getRevisionsByUser = async (userId, filters = {}) => {
             query = query.eq('revision_type', filters.revision_type);
         }
 
-        const { data, error } = await query;
+        if (from !== undefined && to !== undefined) {
+            query = query.range(from, to);
+        }
+
+        const { data, error, count } = await query;
 
         if (error) throw error;
-        return data;
+        return { data, count };
     } catch (error) {
         console.error('Error fetching revisions by user:', error);
         throw error;
     }
 };
 
-export const getRevisionsByTargetRole = async (targetRole, filters = {}) => {
+export const getRevisionsByTargetRole = async (targetRole, filters = {}, options = {}) => {
     try {
+        const { from, to } = options;
+
         let query = supabase
             .from('revisions')
             .select(`
@@ -1689,7 +1743,7 @@ export const getRevisionsByTargetRole = async (targetRole, filters = {}) => {
                 package:question_packages(id, title, public_url),
                 requested_by_user:users!revision_requests_requested_by_fkey(id, name, email),
                 responded_by_user:users!revision_requests_responded_by_fkey(id, name, email)
-            `)
+            `, { count: 'exact' })
             .eq('target_role', targetRole)
             .order('created_at', { ascending: false });
 
@@ -1700,10 +1754,14 @@ export const getRevisionsByTargetRole = async (targetRole, filters = {}) => {
             query = query.in('revision_type', filters.revision_type);
         }
 
-        const { data, error } = await query;
+        if (from !== undefined && to !== undefined) {
+            query = query.range(from, to);
+        }
+
+        const { data, error, count } = await query;
 
         if (error) throw error;
-        return data;
+        return { data, count };
     } catch (error) {
         console.error('Error fetching revisions by target role:', error);
         throw error;
@@ -2316,8 +2374,6 @@ export const approveQuestionMakerRevision = async (revisionId, responseNotes, re
                 .update(updatePackageUrl)
                 .eq('id', updatedQuestion[0]?.package_id)
                 .single();
-
-            console.log(`cek single data on data: ${data}\n\npublic_url: ${responseFiles[0].url}\n\npackage_id: ${JSON.stringify(updatedQuestion)}`);
         }
 
         return {

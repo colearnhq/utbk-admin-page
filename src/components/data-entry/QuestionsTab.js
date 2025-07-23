@@ -90,7 +90,6 @@ const QuestionsTab = () => {
         }
     }, [filters, pagination.currentPage, pagination.itemsPerPage, debouncedSearchQuery]);
 
-    // Fetch stats separately
     const fetchStats = useCallback(async () => {
         try {
             setStatsLoading(true);
