@@ -8,7 +8,7 @@ const QCDashboard = () => {
     underReview: 0,
     approved: 0,
     rejected: 0,
-    revisionRequested: 0
+    recreateQuestion: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -80,8 +80,8 @@ const QCDashboard = () => {
         <div className="stat-card revision">
           <div className="stat-icon">🔄</div>
           <div className="stat-content">
-            <h3>Revision Requested</h3>
-            <p className="stat-number">{stats.revisionRequested}</p>
+            <h3>Recreate Question</h3>
+            <p className="stat-number">{stats.recreateQuestion}</p>
           </div>
         </div>
       </div>
