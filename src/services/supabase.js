@@ -747,7 +747,6 @@ export const getQuestionsCountByStatus = async (qcStatus, filters = {}) => {
     }
 };
 
-// Tambahkan fungsi baru untuk mendapatkan questions dengan pagination dan filter
 export const getQuestionsWithFilters = async (filters = {}, options = {}) => {
     const {
         page = 1,
@@ -769,11 +768,10 @@ export const getQuestionsWithFilters = async (filters = {}, options = {}) => {
                 topic:topics(id, name),
                 concept_title:concept_titles(id, name),
                 created_by:users!questions_created_by_fkey(id, name),
-                package:question_packages(id, title, public_url)
+                packages:question_packages(id, title, public_url)
             `, { count: 'exact' })
             .order('created_at', { ascending: false });
 
-        // Apply filters
         if (status !== 'all') {
             const statusValue = status === 'on_review' ? 'active' : status;
             query = query.eq('status', statusValue);
@@ -795,7 +793,6 @@ export const getQuestionsWithFilters = async (filters = {}, options = {}) => {
             query = query.ilike('packages.title', `%${search}%`);
         }
 
-        // Apply pagination
         const startIndex = (page - 1) * limit;
         query = query.range(startIndex, startIndex + limit - 1);
 

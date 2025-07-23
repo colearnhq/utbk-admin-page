@@ -12,7 +12,6 @@ import QuestionEditor from './QuestionEditor';
 import { useAuth } from '../../hooks/useAuth';
 import '../../styles/pages/revision-tab.css';
 
-// Debounce hook untuk search
 const useDebounce = (value, delay) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -168,7 +167,6 @@ const QuestionsTab = () => {
 
     const handleSearchChange = (e) => {
         setSearchQuery(e.target.value);
-        // Reset to first page when searching
         setPagination(prev => ({
             ...prev,
             currentPage: 1
@@ -359,7 +357,6 @@ const QuestionsTab = () => {
 
             await updateQuestion(editingQuestion.id, updatedQuestion);
 
-            // Refresh both questions and stats
             await Promise.all([fetchQuestions(), fetchStats()]);
 
             setShowEditor(false);
