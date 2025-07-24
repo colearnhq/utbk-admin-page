@@ -1687,12 +1687,13 @@ export const getRevisionsByUser = async (userId, filters = {}, options = {}) => 
         const { data, error, count } = await query;
 
         if (error) throw error;
-        return { data, count };
+        return data;
     } catch (error) {
         console.error('Error fetching revisions by user:', error);
         throw error;
     }
 };
+
 
 export const getRevisionsByTargetRole = async (targetRole, filters = {}, options = {}) => {
     try {
@@ -1761,12 +1762,13 @@ export const getRevisionsByTargetRole = async (targetRole, filters = {}, options
         const { data, error, count } = await query;
 
         if (error) throw error;
-        return { data, count };
+        return data;
     } catch (error) {
         console.error('Error fetching revisions by target role:', error);
         throw error;
     }
 };
+
 
 export const getRevisionsWithAttachments = async (filters = {}) => {
     try {
@@ -2443,6 +2445,83 @@ export const submitRecreatedQuestion = async (questionId, questionData, submitte
         return updatedQuestion[0];
     } catch (error) {
         console.error('Error submitting recreated question:', error);
+        throw error;
+    }
+};
+
+// Tambahkan fungsi-fungsi ini ke file services/supabase.js Anda
+
+// Create new chapter
+export const createChapter = async (chapterData) => {
+    try {
+        const { data, error } = await supabase
+            .from('chapters')
+            .insert([{
+                name: chapterData.name,
+                description: chapterData.description || null,
+                subject_id: chapterData.subject_id
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating chapter:', error);
+            throw error;
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error in createChapter:', error);
+        throw error;
+    }
+};
+
+// Create new topic
+export const createTopic = async (topicData) => {
+    try {
+        const { data, error } = await supabase
+            .from('topics')
+            .insert([{
+                name: topicData.name,
+                description: topicData.description || null,
+                chapter_id: topicData.chapter_id
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating topic:', error);
+            throw error;
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error in createTopic:', error);
+        throw error;
+    }
+};
+
+// Create new concept title
+export const createConceptTitle = async (conceptData) => {
+    try {
+        const { data, error } = await supabase
+            .from('concept_titles')
+            .insert([{
+                name: conceptData.name,
+                description: conceptData.description || null,
+                topic_id: conceptData.topic_id
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating concept title:', error);
+            throw error;
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error in createConceptTitle:', error);
         throw error;
     }
 };
