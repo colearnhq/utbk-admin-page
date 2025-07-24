@@ -1920,3 +1920,255 @@
         width: 100%;
     }
 }
+
+.select-with-self-input {
+    position: relative;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.select-with-self-input select {
+    flex: 1;
+}
+
+.select-with-self-input select.empty-options {
+    border-color: #fbbf24;
+    background-color: #fef3c7;
+}
+
+.btn-self-input {
+    padding: 8px 12px;
+    background-color: #10b981;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+    transition: background-color 0.2s;
+}
+
+.btn-self-input:hover {
+    background-color: #059669;
+}
+
+.btn-self-input:active {
+    background-color: #047857;
+}
+
+.self-input-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.self-input-modal-content {
+    background: white;
+    border-radius: 8px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.self-input-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.self-input-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.self-input-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.self-input-modal-close:hover {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.self-input-modal-close:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.self-input-modal-body {
+    padding: 20px;
+}
+
+.self-input-modal-info {
+    margin-bottom: 20px;
+    padding: 12px;
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 4px;
+    color: #1e40af;
+    font-size: 14px;
+}
+
+.self-input-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* Form styles for modal */
+.self-input-modal-content .form-group {
+    margin-bottom: 16px;
+}
+
+.self-input-modal-content .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.self-input-modal-content .required {
+    color: #dc2626;
+}
+
+.self-input-modal-content input,
+.self-input-modal-content textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.self-input-modal-content input:focus,
+.self-input-modal-content textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.self-input-modal-content input.error,
+.self-input-modal-content textarea.error {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.self-input-modal-content input:disabled,
+.self-input-modal-content textarea:disabled {
+    background-color: #f9fafb;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.error-message {
+    display: block;
+    color: #dc2626;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #2563eb;
+    border-color: #2563eb;
+}
+
+.self-input-modal-btn-secondary {
+    background-color: #6b7280;
+    color: white;
+    border-color: #6b7280;
+}
+
+.self-input-modal-btn-secondary:hover:not(:disabled) {
+    background-color: #4b5563;
+    border-color: #4b5563;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+    .self-input-modal-overlay {
+        padding: 10px;
+    }
+
+    .self-input-modal-content {
+        margin: 0;
+    }
+
+    .self-input-modal-header,
+    .self-input-modal-body {
+        padding: 16px;
+    }
+
+    .select-with-self-input {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .btn-self-input {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .self-input-modal-actions {
+        flex-direction: column-reverse;
+    }
+
+    .self-input-modal-actions .btn {
+        width: 100%;
+    }
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { getSubjects, getChapters, getTopics, getConceptTitles, uploadFileToGoogleDrive, generateUniqueFileName } from '../../services/supabase';
+import { getSubjects, getChapters, getTopics, getConceptTitles, uploadFileToGoogleDrive, generateUniqueFileName, createChapter, createTopic, createConceptTitle } from '../../services/supabase';
 import { uploadFileToSupabase, checkBucketExists, createBucket } from '../../services/supabase-storage';
+import SelfInputModal from './SelfInputModal';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
@@ -30,6 +31,14 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
         chapters: [],
         topics: [],
         conceptTitles: []
+    });
+
+    const [modalState, setModalState] = useState({
+        isOpen: false,
+        type: '',
+        parentId: '',
+        parentName: '',
+        isSubmitting: false
     });
 
     const [loading, setLoading] = useState(true);
@@ -111,6 +120,125 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
             console.error('Error loading concept titles:', error);
         }
     };
+
+    const handleSelfInput = (type, parentId, parentName) => {
+        setModalState({
+            isOpen: true,
+            type,
+            parentId,
+            parentName,
+            isSubmitting: false
+        });
+    };
+
+    const handleModalClose = () => {
+        setModalState(prev => ({
+            ...prev,
+            isOpen: false,
+            isSubmitting: false
+        }));
+    };
+
+    const handleModalSubmit = async (inputData) => {
+        setModalState(prev => ({ ...prev, isSubmitting: true }));
+
+        try {
+            let newItem;
+            const { type, parentId } = modalState;
+
+            switch (type) {
+                case 'chapter':
+                    newItem = await createChapter({
+                        ...inputData,
+                        subject_id: parentId
+                    });
+
+                    await loadChapters(parentId);
+                    setFormData(prev => ({
+                        ...prev,
+                        chapter_id: newItem.id,
+                        topic_id: '',
+                        concept_title_id: ''
+                    }));
+                    break;
+
+                case 'topic':
+                    newItem = await createTopic({
+                        ...inputData,
+                        chapter_id: parentId
+                    });
+
+                    await loadTopics(parentId);
+                    setFormData(prev => ({
+                        ...prev,
+                        topic_id: newItem.id,
+                        concept_title_id: ''
+                    }));
+                    break;
+
+                case 'concept_title':
+                    newItem = await createConceptTitle({
+                        ...inputData,
+                        topic_id: parentId
+                    });
+
+                    await loadConceptTitles(parentId);
+                    setFormData(prev => ({
+                        ...prev,
+                        concept_title_id: newItem.id
+                    }));
+                    break;
+
+                default:
+                    throw new Error('Invalid type');
+            }
+
+            handleModalClose();
+            alert(`${type.replace('_', ' ')} created successfully!`);
+
+        } catch (error) {
+            console.error(`Error creating ${modalState.type}:`, error);
+            alert(`Failed to create ${modalState.type.replace('_', ' ')}. Please try again.`);
+            setModalState(prev => ({ ...prev, isSubmitting: false }));
+        }
+    };
+
+    const renderSelectWithSelfInput = (id, name, value, options, placeholder, disabled, onSelfInputClick, showAddNew) => {
+        const hasOptions = options.length > 0;
+
+        return (
+            <div className="select-with-self-input">
+                <select
+                    id={id}
+                    name={name}
+                    value={value}
+                    onChange={handleInputChange}
+                    required
+                    disabled={disabled}
+                    className={!hasOptions ? 'empty-options' : ''}
+                >
+                    <option value="">{placeholder}</option>
+                    {options.map(option => (
+                        <option key={option.id} value={option.id}>
+                            {option.name}
+                        </option>
+                    ))}
+                </select>
+
+                {!disabled && showAddNew && (
+                    <button
+                        type="button"
+                        className="btn-self-input"
+                        onClick={onSelfInputClick}
+                        title={`Add new ${name.replace('_id', '')}`}
+                    >
+                        + Add New
+                    </button>
+                )}
+            </div>
+        );
+    };
+
 
     const processExistingAttachments = (attachments) => {
         if (!attachments) return [];
@@ -544,59 +672,53 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
 
                     <div className="form-group">
                         <label htmlFor="chapter_id">Chapter</label>
-                        <select
-                            id="chapter_id"
-                            name="chapter_id"
-                            value={formData.chapter_id}
-                            onChange={handleInputChange}
-                            required
-                            disabled={!formData.subject_id}
-                        >
-                            <option value="">Select Chapter</option>
-                            {dropdownData.chapters.map(chapter => (
-                                <option key={chapter.id} value={chapter.id}>
-                                    {chapter.name}
-                                </option>
-                            ))}
-                        </select>
+                        {renderSelectWithSelfInput(
+                            'chapter_id',
+                            'chapter_id',
+                            formData.chapter_id,
+                            dropdownData.chapters,
+                            'Select Chapter',
+                            !formData.subject_id,
+                            () => {
+                                const selectedSubject = dropdownData.subjects.find(s => s.id === formData.subject_id);
+                                handleSelfInput('chapter', formData.subject_id, selectedSubject?.name || '');
+                            },
+                            formData.subject_id && !formData.chapter_id
+                        )}
                     </div>
 
                     <div className="form-group">
                         <label htmlFor="topic_id">Topic</label>
-                        <select
-                            id="topic_id"
-                            name="topic_id"
-                            value={formData.topic_id}
-                            onChange={handleInputChange}
-                            required
-                            disabled={!formData.chapter_id}
-                        >
-                            <option value="">Select Topic</option>
-                            {dropdownData.topics.map(topic => (
-                                <option key={topic.id} value={topic.id}>
-                                    {topic.name}
-                                </option>
-                            ))}
-                        </select>
+                        {renderSelectWithSelfInput(
+                            'topic_id',
+                            'topic_id',
+                            formData.topic_id,
+                            dropdownData.topics,
+                            'Select Topic',
+                            !formData.chapter_id,
+                            () => {
+                                const selectedChapter = dropdownData.chapters.find(c => c.id === formData.chapter_id);
+                                handleSelfInput('topic', formData.chapter_id, selectedChapter?.name || '');
+                            },
+                            formData.chapter_id && !formData.topic_id // Show Add New jika chapter dipilih tapi topic belum
+                        )}
                     </div>
 
                     <div className="form-group">
                         <label htmlFor="concept_title_id">Concept Title</label>
-                        <select
-                            id="concept_title_id"
-                            name="concept_title_id"
-                            value={formData.concept_title_id}
-                            onChange={handleInputChange}
-                            required
-                            disabled={!formData.topic_id}
-                        >
-                            <option value="">Select Concept Title</option>
-                            {dropdownData.conceptTitles.map(concept => (
-                                <option key={concept.id} value={concept.id}>
-                                    {concept.name}
-                                </option>
-                            ))}
-                        </select>
+                        {renderSelectWithSelfInput(
+                            'concept_title_id',
+                            'concept_title_id',
+                            formData.concept_title_id,
+                            dropdownData.conceptTitles,
+                            'Select Concept Title',
+                            !formData.topic_id,
+                            () => {
+                                const selectedTopic = dropdownData.topics.find(t => t.id === formData.topic_id);
+                                handleSelfInput('concept_title', formData.topic_id, selectedTopic?.name || '');
+                            },
+                            formData.topic_id && !formData.concept_title_id // Show Add New jika topic dipilih tapi concept belum
+                        )}
                     </div>
 
                     <div className="form-group">
@@ -818,6 +940,14 @@ const QuestionForm = ({ onSubmit, onPreview, initialData = null }) => {
                     </button>
                 </div>
             </form>
+            <SelfInputModal
+                isOpen={modalState.isOpen}
+                onClose={handleModalClose}
+                onSubmit={handleModalSubmit}
+                type={modalState.type}
+                parentName={modalState.parentName}
+                isSubmitting={modalState.isSubmitting}
+            />
         </div>
     );
 };
