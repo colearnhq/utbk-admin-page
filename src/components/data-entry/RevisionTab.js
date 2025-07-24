@@ -181,7 +181,6 @@ const RevisionTab = () => {
         );
     };
 
-
     useEffect(() => {
         fetchAllRevisionData();
     }, []);
@@ -533,7 +532,7 @@ const RevisionTab = () => {
                     </div>
 
                     <RequestFilterSection
-                        data={revisionRequests}
+                        data={allRevisionRequests}
                         filteredData={getFilteredRequests()}
                         onStatusFilterChange={setStatusFilter}
                         currentStatusFilter={statusFilter}
@@ -689,7 +688,7 @@ const RevisionTab = () => {
                     </div>
 
                     <AcceptanceFilterSection
-                        data={revisionAcceptances}
+                        data={allRevisionAcceptances}
                         filteredData={getFilteredAcceptances()}
                         onStatusFilterChange={setStatusFilter}
                         onPicFilterChange={setPicFilter}
