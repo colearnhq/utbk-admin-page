@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getRevisionRequests, getRevisionAcceptances, updateRevisionRequest, updateRevisionAcceptance, getRevisionsByUser, getRevisionsByTargetRole } from '../../services/supabase';
 import LoadingSpinner from '../common/LoadingSpinner';
 import QuestionForm from './QuestionForm';
@@ -30,7 +30,7 @@ const RevisionTab = () => {
     const currentUserId = userData.id;
 
     const getFilteredRequests = () => {
-        let filtered = revisionRequests;
+        let filtered = allRevisionRequests;
 
         if (statusFilter !== 'all') {
             filtered = filtered.filter(request => request.status === statusFilter);
@@ -40,7 +40,7 @@ const RevisionTab = () => {
     };
 
     const getFilteredAcceptances = () => {
-        let filtered = revisionAcceptances;
+        let filtered = allRevisionAcceptances;
 
         if (statusFilter !== 'all') {
             filtered = filtered.filter(acceptance => acceptance.status === statusFilter);
@@ -55,6 +55,28 @@ const RevisionTab = () => {
 
         return filtered;
     };
+
+    const filteredRequests = useMemo(() => getFilteredRequests(), [allRevisionRequests, statusFilter]);
+    const filteredAcceptances = useMemo(() => getFilteredAcceptances(), [allRevisionAcceptances, statusFilter, picFilter]);
+
+    const paginatedFilteredRequests = useMemo(() =>
+        filteredRequests.slice(
+            (currentPage - 1) * ITEMS_PER_PAGE,
+            currentPage * ITEMS_PER_PAGE
+        ),
+        [filteredRequests, currentPage]
+    );
+
+    const paginatedFilteredAcceptances = useMemo(() =>
+        filteredAcceptances.slice(
+            (currentPage - 1) * ITEMS_PER_PAGE,
+            currentPage * ITEMS_PER_PAGE
+        ),
+        [filteredAcceptances, currentPage]
+    );
+
+    const totalFilteredRequests = filteredRequests.length;
+    const totalFilteredAcceptances = filteredAcceptances.length;
 
     const getAvailableStatuses = (data) => {
         const statuses = [...new Set(data.map(item => item.status))];
@@ -80,7 +102,6 @@ const RevisionTab = () => {
     const RequestFilterSection = ({ data, filteredData, onStatusFilterChange, currentStatusFilter }) => {
         const availableStatuses = getAvailableStatuses(data);
         const hasActiveFilters = currentStatusFilter !== 'all';
-
         return (
             <div className="filter-section">
                 <div className="filter-controls">
@@ -533,12 +554,12 @@ const RevisionTab = () => {
 
                     <RequestFilterSection
                         data={allRevisionRequests}
-                        filteredData={getFilteredRequests()}
+                        filteredData={filteredRequests}
                         onStatusFilterChange={setStatusFilter}
                         currentStatusFilter={statusFilter}
                     />
 
-                    {getFilteredRequests().length === 0 ? (
+                    {filteredRequests.length === 0 ? (
                         <div className="empty-state">
                             <p>
                                 {statusFilter === 'all'
@@ -551,13 +572,13 @@ const RevisionTab = () => {
                         <>
                             <Pagination
                                 currentPage={currentPage}
-                                totalPages={Math.ceil(totalItems / ITEMS_PER_PAGE)}
+                                totalPages={Math.ceil(totalFilteredRequests / ITEMS_PER_PAGE)}
                                 onPageChange={handlePageChange}
-                                totalItems={totalItems}
+                                totalItems={totalFilteredRequests}
                                 itemsPerPage={ITEMS_PER_PAGE}
                             />
                             <div className="revision-list">
-                                {getFilteredRequests().map((request) => {
+                                {paginatedFilteredRequests.map((request) => {
                                     const attachments = parseAttachmentUrls(request.revision_attachment_urls);
 
                                     return (
@@ -689,14 +710,14 @@ const RevisionTab = () => {
 
                     <AcceptanceFilterSection
                         data={allRevisionAcceptances}
-                        filteredData={getFilteredAcceptances()}
+                        filteredData={filteredAcceptances}
                         onStatusFilterChange={setStatusFilter}
                         onPicFilterChange={setPicFilter}
                         currentStatusFilter={statusFilter}
                         currentPicFilter={picFilter}
                     />
 
-                    {getFilteredAcceptances().length === 0 ? (
+                    {filteredAcceptances.length === 0 ? (
                         <div className="empty-state">
                             <p>
                                 {statusFilter === 'all' && picFilter === 'all'
@@ -709,13 +730,13 @@ const RevisionTab = () => {
                         <>
                             <Pagination
                                 currentPage={currentPage}
-                                totalPages={Math.ceil(totalItems / ITEMS_PER_PAGE)}
+                                totalPages={Math.ceil(totalFilteredAcceptances / ITEMS_PER_PAGE)}
                                 onPageChange={handlePageChange}
-                                totalItems={totalItems}
+                                totalItems={totalFilteredAcceptances}
                                 itemsPerPage={ITEMS_PER_PAGE}
                             />
                             <div className="revision-list">
-                                {getFilteredAcceptances().map((acceptance) => {
+                                {paginatedFilteredAcceptances.map((acceptance) => {
                                     const attachments = parseAttachmentUrls(acceptance.revision_attachment_urls);
 
                                     return (
