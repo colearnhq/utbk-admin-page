@@ -63,7 +63,6 @@ const QuestionsTab = () => {
 
     const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
-    // Fetch questions with current filters and pagination
     const fetchQuestions = useCallback(async () => {
         try {
             setLoading(true);
@@ -435,13 +434,13 @@ const QuestionsTab = () => {
 
             <div className="questions-filters">
                 <div className="search-group search-on-question">
-                    <label htmlFor="search-input">Search by Package Name:</label>
+                    <label htmlFor="search-input">Search:</label>
                     <input
                         id="search-input"
                         type="text"
                         value={searchQuery}
                         onChange={handleSearchChange}
-                        placeholder="Search by package name..."
+                        placeholder="Search by package or question id..."
                         className="search-input"
                     />
                 </div>

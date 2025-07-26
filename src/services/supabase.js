@@ -804,10 +804,30 @@ export const getQuestionsWithFilters = async (filters = {}, options = {}) => {
                 .select('id')
                 .ilike('title', `%${search.trim()}%`);
 
+            let inhouseIdMatches = [];
+            const { data: inhouseData, error: inhouseError } = await supabase
+                .from('questions')
+                .select('id')
+                .ilike('inhouse_id', `%${search.trim()}%`);
+
             if (!packageError && packageData && packageData.length > 0) {
                 const packageIds = packageData.map(pkg => pkg.id);
                 query = query.in('package_id', packageIds);
-            } else {
+            }
+
+            if (!inhouseError && inhouseData && inhouseData.length > 0) {
+                const questionIds = inhouseData.map(q => q.id);
+                const packageIds = packageData.map(pkg => pkg.id);
+                if (query.filters && query.filters.length > 0) {
+                    query = query.or(`package_id.in.(${packageIds.join(',')}),id.in.(${questionIds.join(',')})`);
+                } else {
+                    query = query.in('id', questionIds);
+                }
+            }
+            if (
+                (!packageData || packageData.length === 0) &&
+                (!inhouseData || inhouseData.length === 0)
+            ) {
                 return {
                     questions: [],
                     total: 0,
@@ -878,11 +898,27 @@ export const getQuestionsStats = async (filters = {}) => {
             const { data: packageData, error: packageError } = await supabase
                 .from('question_packages')
                 .select('id')
-                .ilike('title', `%${search.trim()}%`)
+                .ilike('title', `%${search.trim()}%`);
 
-            if (!packageError && packageData) {
+            let inhouseIdMatches = [];
+            const { data: inhouseData, error: inhouseError } = await supabase
+                .from('questions')
+                .select('id')
+                .ilike('inhouse_id', `%${search.trim()}%`);
+
+            if (!packageError && packageData && packageData.length > 0) {
                 const packageIds = packageData.map(pkg => pkg.id);
                 query = query.in('package_id', packageIds);
+            }
+
+            if (!inhouseError && inhouseData && inhouseData.length > 0) {
+                const questionIds = inhouseData.map(q => q.id);
+                const packageIds = packageData.map(pkg => pkg.id);
+                if (query.filters && query.filters.length > 0) {
+                    query = query.or(`package_id.in.(${packageIds.join(',')}),id.in.(${questionIds.join(',')})`);
+                } else {
+                    query = query.in('id', questionIds);
+                }
             }
         }
 
