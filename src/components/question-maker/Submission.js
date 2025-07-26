@@ -49,11 +49,11 @@ const Submission = () => {
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            const allowedTypes = ['.pdf', '.docx', '.doc', '.zip'];
+            const allowedTypes = ['.pdf'];
             const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
 
             if (!allowedTypes.includes(fileExtension)) {
-                setError('File type not supported. Please upload PDF, DOCX, DOC, or ZIP files.');
+                setError('File type not supported. Please upload PDF only.');
                 return;
             }
 
@@ -303,12 +303,12 @@ const Submission = () => {
                         type="file"
                         id="file-input"
                         onChange={handleFileChange}
-                        accept=".pdf,.docx,.doc,.zip"
+                        accept=".pdf"
                         disabled={uploading}
                         required
                     />
                     <small className="file-info">
-                        Format yang didukung: PDF, DOCX, DOC, ZIP (Maksimal 10MB)
+                        Format yang didukung: PDF saja.
                     </small>
                     {formData.file && (
                         <div className="selected-file">
