@@ -399,7 +399,7 @@ const Revision = () => {
                     <tbody>
                         {getCurrentPageData().map(revision => (
                             <tr key={revision.id}>
-                                <td>{revision.package?.title || 'N/A'}</td>
+                                <td>{revision.question?.question_number ? <span>{revision.package?.title}<br /><strong>(Question No. {revision.question?.question_number})</strong></span> : revision.package?.title || 'N/A'}</td>
                                 <td>{revision?.package?.vendor_name || 'N/A'}</td>
                                 <td className="question-preview-cell">
                                     {revision.question?.question ? (

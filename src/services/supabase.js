@@ -1152,6 +1152,7 @@ export const getRevisions = async (filters = {}) => {
                     id,
                     inhouse_id,
                     question_type,
+                    question_number,
                     question,
                     option_a,
                     option_b,
