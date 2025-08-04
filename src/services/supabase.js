@@ -2218,7 +2218,6 @@ export const submitQCReview = async (reviewData) => {
         let finalStatus = status;
         let finalTargetRole = targetRole;
 
-        // Special handling for easy questions
         if (difficulty === 'easy') {
             finalStatus = 'revision_requested';
             finalTargetRole = 'question_maker';
@@ -2273,11 +2272,21 @@ export const submitQCReview = async (reviewData) => {
             qcReview = insertQCData[0];
         }
 
+        const { data: questionsData, error: questionsError } = await supabase
+            .from('questions')
+            .select('rejected_at, approved_at, package_id')
+            .eq('id', questionId)
+            .single();
+
+        if (questionsError) throw questionsError;
+
         const questionUpdateData = {
             status: convertQCStatusToQuestionStatus(finalStatus),
             qc_status: finalStatus,
             qc_reviewer_id: reviewerId,
             qc_reviewed_at: getJakartaISOString(),
+            rejected_at: finalStatus === 'rejected' ? getJakartaISOString() : questionsData?.rejected_at,
+            approved_at: questionsData?.approved_at ?? (finalStatus === 'approved' ? getJakartaISOString() : null),
             qc_difficulty_level: difficulty,
             updated_at: getJakartaISOString()
         };
