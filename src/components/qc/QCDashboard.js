@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getQCStatistics } from '../../services/supabase';
+import QuotaDashboard from './QuotaDashboard';
 
 const QCDashboard = () => {
   const [stats, setStats] = useState({
@@ -85,6 +86,8 @@ const QCDashboard = () => {
           </div>
         </div>
       </div>
+
+      <QuotaDashboard maxQuestions={100} />
 
       <div className="dashboard-actions">
         <div className="action-card">

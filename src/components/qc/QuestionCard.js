@@ -1,10 +1,20 @@
 import React from 'react';
 import { useAuth } from '../../hooks/useAuth';
 
-const QuestionCard = ({ question, onClick, showQCStatus = false }) => {
+const QuestionCard = ({
+  question,
+  onClick,
+  showQCStatus = false,
+  disabled = false,
+  quotaLimitReached = false
+}) => {
   const { userData } = useAuth();
 
   const handleClick = () => {
+    if (disabled || quotaLimitReached) {
+      return;
+    }
+
     if (question.qc_status === 'under_qc_review' && question.qc_reviewer_id !== userData?.id) {
       return;
     }
@@ -20,6 +30,18 @@ const QuestionCard = ({ question, onClick, showQCStatus = false }) => {
           <span className="reviewer-info">
             {isMyReview ? 'By Me' : `By ${question.qc_reviewer_name || 'Unknown'}`}
           </span>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderQuotaLimitBadge = () => {
+    if (quotaLimitReached && question.qc_status === 'pending_review') {
+      return (
+        <div className="quota-limit-badge">
+          <span className="quota-badge-text">🚫 Quota Limit Reached</span>
+          <span className="quota-hint">Complete a question to take new ones</span>
         </div>
       );
     }
@@ -52,18 +74,54 @@ const QuestionCard = ({ question, onClick, showQCStatus = false }) => {
   };
 
   const getClickHint = () => {
+    // Priority: Quota limit message first
+    if (quotaLimitReached && question.qc_status === 'pending_review') {
+      return 'Complete at least one question to select new ones';
+    }
+
     if (question.qc_status === 'under_qc_review' || question.qc_status === 'under_review') {
       if (question.qc_reviewer_id === userData?.id) {
         return 'Click to continue review';
       } else {
         return 'Currently being reviewed by another user';
       }
-    };
+    }
+
+    // Default click hint for available questions
+    if (question.qc_status === 'pending_review') {
+      return 'Click to start review';
+    }
+
+    return 'Click to view details';
   };
 
   const isClickable = () => {
+    // Not clickable if quota limit reached for pending review questions
+    if (quotaLimitReached && question.qc_status === 'pending_review') {
+      return false;
+    }
+
+    // Not clickable if disabled
+    if (disabled) {
+      return false;
+    }
+
     // Clickable jika bukan under_qc_review, atau jika under_qc_review oleh user saat ini
     return question.qc_status !== 'under_qc_review' || question.qc_reviewer_id === userData?.id;
+  };
+
+  const getCardClassName = () => {
+    let className = 'question-card';
+
+    if (!isClickable()) {
+      className += ' disabled';
+    }
+
+    if (quotaLimitReached && question.qc_status === 'pending_review') {
+      className += ' quota-limited';
+    }
+
+    return className;
   };
 
   const statusBadge = getStatusBadge(question.qc_status);
@@ -71,8 +129,16 @@ const QuestionCard = ({ question, onClick, showQCStatus = false }) => {
 
   return (
     <div
-      className={`question-card ${!isClickable() ? 'disabled' : ''}`}
+      className={getCardClassName()}
       onClick={handleClick}
+      role={isClickable() ? 'button' : 'presentation'}
+      tabIndex={isClickable() ? 0 : -1}
+      onKeyDown={(e) => {
+        if (isClickable() && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
     >
       <div className="question-header">
         <div className="question-id">
@@ -89,10 +155,16 @@ const QuestionCard = ({ question, onClick, showQCStatus = false }) => {
               {difficultyBadge.text}
             </span>
           )}
+          {quotaLimitReached && question.qc_status === 'pending_review' && (
+            <span className="quota-limit-indicator">
+              🚫 Limit
+            </span>
+          )}
         </div>
       </div>
 
       {renderQCStatusBadge()}
+      {renderQuotaLimitBadge()}
 
       <div className="question-meta">
         <div className="meta-item">
@@ -149,6 +221,16 @@ const QuestionCard = ({ question, onClick, showQCStatus = false }) => {
           {getClickHint()}
         </span>
       </div>
+
+      {/* Overlay for quota limited cards */}
+      {quotaLimitReached && question.qc_status === 'pending_review' && (
+        <div className="quota-overlay">
+          <div className="quota-overlay-content">
+            <span className="quota-overlay-icon">⚠️</span>
+            <span className="quota-overlay-text">Quota Limit Reached</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

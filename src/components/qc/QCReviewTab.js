@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getQuestionsForQC, getSubjects, getQCReviewersFromQuestions, markQuestionAsUnderReview } from '../../services/supabase';
+import { getQuestionsForQC, getSubjects, getQCReviewersFromQuestions, markQuestionAsUnderReview, getUserUnderReviewCount } from '../../services/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import QuestionCard from './QuestionCard';
 import QuestionReviewModal from './QuestionReviewModal';
@@ -14,6 +14,9 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
   const [searchInput, setSearchInput] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [userUnderReviewCount, setUserUnderReviewCount] = useState(0);
+  const [maxQuestions] = useState(100);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalQuestions, setTotalQuestions] = useState(0);
@@ -44,6 +47,7 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
   useEffect(() => {
     fetchQuestions(true);
     fetchFilterOptions();
+    fetchUserUnderReviewCount();
   }, [status, filters, excludeUnderReview, showOnlyMyReviews, currentPage]);
 
   useEffect(() => {
@@ -58,6 +62,18 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
   const createUniqueMetadata = (values) => {
     if (!Array.isArray(values)) return [];
     return [...new Map(values.map(object => [object["name"], object])).values()];
+  };
+
+  const fetchUserUnderReviewCount = async () => {
+    try {
+      if (userData?.id) {
+        const count = await getUserUnderReviewCount(userData.id);
+        setUserUnderReviewCount(count);
+      }
+    } catch (error) {
+      console.error('Error fetching user under review count:', error);
+      setUserUnderReviewCount(0);
+    }
   };
 
   const fetchQuestions = async (isRefresh = false) => {
@@ -127,6 +143,11 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
       }
 
       if (status === 'pending_review' && excludeUnderReview) {
+        if (userUnderReviewCount >= maxQuestions) {
+          alert(`You have reached the maximum limit of ${maxQuestions} questions under review. Please complete at least one question before selecting a new one.`);
+          return;
+        }
+
         const updatedQuestion = await markQuestionAsUnderReview(question.id, userData.id);
 
         const questionWithReviewer = {
@@ -139,6 +160,8 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
 
         setSelectedQuestion(questionWithReviewer);
         setShowModal(true);
+
+        setUserUnderReviewCount(prev => prev + 1);
 
         await fetchQuestions();
 
@@ -170,6 +193,8 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
   const handleQCSubmit = async () => {
     setShowModal(false);
     setSelectedQuestion(null);
+
+    await fetchUserUnderReviewCount();
     await fetchQuestions();
 
     if (onQuestionMoved) {
@@ -180,6 +205,8 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
   const handleQuestionReleased = async () => {
     setShowModal(false);
     setSelectedQuestion(null);
+
+    await fetchUserUnderReviewCount();
     await fetchQuestions();
 
     if (onQuestionMoved) {
@@ -251,7 +278,7 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
 
   const getDescription = () => {
     if (status === 'pending_review' && excludeUnderReview) {
-      return 'New questions available for review. Click to start reviewing.';
+      return `New questions available for review. Click to start reviewing. (${userUnderReviewCount}/${maxQuestions} questions currently under your review)`;
     }
     if (status === 'under_qc_review') {
       return 'Questions that are currently reviewing.';
@@ -281,6 +308,16 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
       <div className="tab-header">
         <h2>{title}</h2>
         <p className="tab-description">{getDescription()}</p>
+
+        {status === 'pending_review' && excludeUnderReview && (
+          <div className={`quota-indicator ${userUnderReviewCount >= maxQuestions ? 'quota-full' : ''}`}>
+            {userUnderReviewCount >= maxQuestions && (
+              <p className="quota-warning">
+                ⚠️ You've reached the maximum limit. Complete at least one question to select new ones.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="filters-container">
@@ -371,6 +408,17 @@ const QCReviewTab = ({ status, title, excludeUnderReview = false, showOnlyMyRevi
               question={question}
               onClick={handleQuestionClick}
               showQCStatus={true}
+              disabled={
+                status === 'pending_review' &&
+                excludeUnderReview &&
+                userUnderReviewCount >= maxQuestions &&
+                question.qc_reviewer_id !== userData.id
+              }
+              quotaLimitReached={
+                status === 'pending_review' &&
+                excludeUnderReview &&
+                userUnderReviewCount >= maxQuestions
+              }
             />
           ))
         )}

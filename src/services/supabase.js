@@ -2348,7 +2348,6 @@ export const submitQCReview = async (reviewData) => {
     }
 };
 
-// New function to handle Question Maker approve action for easy questions
 export const approveQuestionMakerRevision = async (revisionId, responseNotes, responseFiles, respondedBy) => {
     try {
         // First get the revision details
@@ -2547,7 +2546,6 @@ export const createTopic = async (topicData) => {
     }
 };
 
-// Create new concept title
 export const createConceptTitle = async (conceptData) => {
     try {
         const { data, error } = await supabase
@@ -2569,5 +2567,134 @@ export const createConceptTitle = async (conceptData) => {
     } catch (error) {
         console.error('Error in createConceptTitle:', error);
         throw error;
+    }
+};
+
+export const getUserUnderReviewCount = async (userId) => {
+    try {
+        const { count, error } = await supabase
+            .from('questions')
+            .select('*', { count: 'exact', head: true })
+            .eq('qc_reviewer_id', userId)
+            .in('qc_status', ['under_qc_review', 'under_review']);
+
+        if (error) {
+            console.error('Error fetching user under review count:', error);
+            throw error;
+        }
+
+        return count || 0;
+    } catch (error) {
+        console.error('Error in getUserUnderReviewCount:', error);
+        return 0;
+    }
+};
+
+
+export const canUserTakeNewQuestion = async (userId, maxLimit = 10) => {
+    try {
+        const currentCount = await getUserUnderReviewCount(userId);
+
+        return {
+            canTake: currentCount < maxLimit,
+            currentCount,
+            maxLimit
+        };
+    } catch (error) {
+        console.error('Error in canUserTakeNewQuestion:', error);
+        return {
+            canTake: false,
+            currentCount: 0,
+            maxLimit
+        };
+    }
+};
+
+export const markQuestionAsUnderReviewWithLimit = async (questionId, userId, maxLimit = 10) => {
+    try {
+        const { canTake, currentCount } = await canUserTakeNewQuestion(userId, maxLimit);
+
+        if (!canTake) {
+            throw new Error(`Cannot take new question. You have ${currentCount}/${maxLimit} questions under review. Please complete at least one question first.`);
+        }
+
+        const { data, error } = await supabase
+            .from('questions')
+            .update({
+                qc_status: 'under_qc_review',
+                qc_reviewer_id: userId,
+                qc_review_started_at: new Date().toISOString()
+            })
+            .eq('id', questionId)
+            .eq('qc_status', 'pending_review')
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error marking question as under review:', error);
+            throw error;
+        }
+
+        if (!data) {
+            throw new Error('Question may have already been taken by another reviewer or is no longer available.');
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error in markQuestionAsUnderReviewWithLimit:', error);
+        throw error;
+    }
+};
+
+export const getUserQuestionsUnderReview = async (userId, options = {}) => {
+    try {
+        const {
+            page = 1,
+            limit = 10,
+            subjects = [],
+            search = ''
+        } = options;
+
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+
+        let query = supabase
+            .from('questions')
+            .select(`
+        *,
+        subjects!inner(name),
+        users!qc_reviewer_id(name)
+      `)
+            .eq('qc_reviewer_id', userId)
+            .in('qc_status', ['under_qc_review', 'under_review'])
+            .order('qc_review_started_at', { ascending: false });
+
+        if (subjects.length > 0) {
+            query = query.in('subject_id', subjects);
+        }
+
+        if (search) {
+            query = query.ilike('inhouse_id', `%${search}%`);
+        }
+
+        const { count } = await query.select('*', { count: 'exact', head: true });
+
+        const { data, error } = await query.range(from, to);
+
+        if (error) {
+            console.error('Error fetching user questions under review:', error);
+            throw error;
+        }
+
+        return {
+            questions: data || [],
+            total: count || 0
+        };
+    } catch (error) {
+        console.error('Error in getUserQuestionsUnderReview:', error);
+        return {
+            questions: [],
+            total: 0
+        };
     }
 };
