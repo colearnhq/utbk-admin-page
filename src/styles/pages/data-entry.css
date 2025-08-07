@@ -2123,6 +2123,17 @@
     border-color: #3b82f6;
 }
 
+.btn-correction {
+    background-color: #ffa41c;
+    color: white;
+    border-color: #ffa41c;
+}
+
+.btn-correction:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(255, 149, 0, 0.4);
+}
+
 .btn-primary:hover:not(:disabled) {
     background-color: #2563eb;
     border-color: #2563eb;

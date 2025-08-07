@@ -330,13 +330,14 @@ const QuestionsTab = () => {
         }
     };
 
-    const handleEditQuestion = (question) => {
+    const handleEditQuestion = (question, note = null) => {
         setEditingQuestion({
             ...question,
             subject_id: question.subject.id,
             chapter_id: question.chapter.id,
             topic_id: question.topic.id,
-            concept_title_id: question.concept_title.id
+            concept_title_id: question.concept_title.id,
+            marked_as: note
         });
         setShowEditor(true);
     };
@@ -350,7 +351,8 @@ const QuestionsTab = () => {
                 status: 'edited',
                 is_edited: true,
                 edited_at: getJakartaISOString(),
-                edited_by: userData.id
+                edited_by: userData.id,
+                marked_as: editingQuestion.marked_as
             };
 
             await updateQuestion(editingQuestion.id, updatedQuestion);
@@ -580,6 +582,13 @@ const QuestionsTab = () => {
                                         onClick={() => handleEditQuestion(question)}
                                     >
                                         Edit
+                                    </button>
+                                    <button
+                                        className="btn btn-correction"
+                                        onClick={() => handleEditQuestion(question, "edit_from_qc")}
+                                        disabled={['8142e646-488b-4a72-b88c-7b0ad5e807a7', '23a817e9-415d-46db-8ea8-85d554099c48'].includes(userData.id) ? false : true}
+                                    >
+                                        Edit from QC
                                     </button>
                                 </div>
                             </div>

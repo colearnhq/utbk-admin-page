@@ -1015,7 +1015,7 @@ export const getCurrentQuestion = async (qId) => {
     }
 }
 
-export const updateQuestion = async (questionId, questionData) => {
+export const updateQuestion = async (questionId, questionData, note) => {
     try {
         const { data, error } = await supabase
             .from('questions')
