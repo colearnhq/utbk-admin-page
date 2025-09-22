@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import DebugPanel from '/Users/imamfachrudin/Documents/live ops/utbk-platform-admin/src/components/common/PanelDebug.js';
+import DebugPanel from '../common/PanelDebug.js';
 import '../../styles/pages/login.css';
 
 const Login = () => {
