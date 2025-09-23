@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getUserUnderReviewCount, getUserQuestionsUnderReview } from '../../services/supabase';
 import { useAuth } from '../../hooks/useAuth';
-import '/Users/imamfachrudin/Documents/live ops/utbk-platform-admin/src/styles/pages/quota-dashboard.css';
+import '../../styles/pages/quota-dashboard.css';
 
 const QuotaDashboard = ({ onQuotaUpdate, maxQuestions = 10 }) => {
     const { userData } = useAuth();
