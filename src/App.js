@@ -73,6 +73,9 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* Question Bank Editor Demo */}
+            <Route path="/editor-demo" element={<QbDemo />} />
           </Routes>
         </div>
       </Router>

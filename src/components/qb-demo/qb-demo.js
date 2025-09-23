@@ -31,10 +31,11 @@ function QbDemo() {
   };
 
   return (
-    <div style={{ height: "500px" }}>
+    <div>
+      <h1>Question Bank Demo</h1>
       <MdEditor
         value={input}
-        style={{ height: "500px" }}
+        style={{ height: "700px" }}
         renderHTML={renderHtml}
         onChange={onChange}
         plugins={[
@@ -54,7 +55,7 @@ function QbDemo() {
           Plugins.Table.pluginName,
           FontUnderline.pluginName,
           LatexInline.pluginName,
-          LatexBlock.pluginName
+          LatexBlock.pluginName,
         ]}
       />
     </div>
