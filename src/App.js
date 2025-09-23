@@ -9,6 +9,7 @@ import MetadataLayout from './components/metadata/MetadataLayout';
 import QCPage from './components/qc/QCPage';
 import AdminDashboard from './components/administrator/AdminDashboard';
 import UserRegistration from './components/admin/UserRegistration'; // New import
+import QbDemo from './components/qb-demo/qb-demo';
 
 function App() {
   return (
@@ -73,6 +74,9 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* Question Bank Editor Demo */}
+            <Route path="/editor-demo" element={<QbDemo />} />
           </Routes>
         </div>
       </Router>
