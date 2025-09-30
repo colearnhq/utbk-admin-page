@@ -87,7 +87,7 @@ const QCDashboard = () => {
         </div>
       </div>
 
-      <QuotaDashboard maxQuestions={100} />
+      <QuotaDashboard maxQuestions={200} />
 
       <div className="dashboard-actions">
         <div className="action-card">
